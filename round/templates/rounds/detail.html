@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{ round.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+</head>
+
+<body class="container">
+    <h1>{{ round.name }}</h1>
+    <p>Starts at: {{ round.starts_at }}</p>
+
+    <a href="{% url 'rounds_list' %}" class="btn btn-secondary">Back to Rounds</a>
+
+    <hr />
+
+    {% if error %}
+        <div class="alert alert-danger" role="alert">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    {% if draw %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Location</th>
+                <th>Aff</th>
+                <th>Neg</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pairing in draw %}
+            <tr>
+                <th>{{ pairing.location.display_name }}</th>
+
+                <td>{{ pairing.teams.0.team }}</td>
+                <td>{{ pairing.teams.1.team }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+</body>
+
+</html>
