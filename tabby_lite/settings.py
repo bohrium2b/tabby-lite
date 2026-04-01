@@ -38,7 +38,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "round"
+    "django_vite",
+    "round",
+    "ballot",
+    "api",
 ]
 
 MIDDLEWARE = [
@@ -117,15 +120,22 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
-STATICFILES_ROOT = BASE_DIR / "static"
+STATIC_ROOT = BASE_DIR / "static"
 
 # Tabbycat API URI
-TABBY_ROOT = "https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26"
+TABBY_ROOT = "https://mactabby26.onrender.com/api/v1/tournaments/minimal8team"
 
 TABBY_AUTHENTICATION_TOKEN = os.getenv("TABBY_AUTHENTICATION_TOKEN")  # Get authentication token from Env
 
 DJANGO_VITE = {
   "default": {
     "dev_mode": True
-  }
+  },
+  "ballot": {
+    "dev_mode": True,
+    "dev_server_port": 5173,
+    "manifest_path": BASE_DIR / "ballot/static/ballot/manifest.json",
+    "dev_server_host": "miniature-invention-qj4wgg7vrvc6w9g-5173.app.github.dev/static/ballot/",
+    "dev_server_protocol": "https"
+  },
 }

@@ -23,6 +23,9 @@
     {% endif %}
 
     {% if draw %}
+    <div class="mb-3">
+        <a href="{% url 'draw_csv' round.id %}" class="btn btn-primary">Download Draw as CSV</a>
+    </div>
     <table class="table">
         <thead>
             <tr>

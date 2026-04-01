@@ -206,6 +206,21 @@ Django = ">=3.2"
 dev = ["black"]
 
 [[package]]
+name = "djangorestframework"
+version = "3.17.0"
+description = "Web APIs for Django, made easy."
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "djangorestframework-3.17.0-py3-none-any.whl", hash = "sha256:d84fe85f30b7ac6e8c0076ce9ff635e4eaedca5912f8d7d2926ce448c08533ba"},
+    {file = "djangorestframework-3.17.0.tar.gz", hash = "sha256:456fd992a33f9e64c9d0f47e85d9787db0efb44f894c1e513315b5e74765bd4c"},
+]
+
+[package.dependencies]
+django = ">=4.2"
+
+[[package]]
 name = "idna"
 version = "3.11"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -416,4 +431,4 @@ zstd = ["backports-zstd (>=1.0.0) ; python_version < \"3.14\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "8dfdb8452ebb79c0ff0be026afd9d6a2ea1f1ed3d7701ab6eee6463d59c43b33"
+content-hash = "e7009c97b37ac59f8f2082042d37c33eda6982ba7b07e68a4a15a597011a54db"

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Team Registration</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed-dim": "#3cddc7",
+                        "surface-tint": "#ffffff",
+                        "on-primary-container": "#000000",
+                        "background": "#ffffff",
+                        "secondary": "#000000",
+                        "on-surface": "#111111",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#45464d",
+                        "surface-container-low": "#eff4ff",
+                        "secondary-fixed-dim": "#b9c7e0",
+                        "secondary-fixed": "#d5e3fd",
+                        "on-secondary-container": "#57657b",
+                        "on-error-container": "#93000a",
+                        "primary-fixed-dim": "#89ceff",
+                        "on-error": "#ffffff",
+                        "tertiary": "#000000",
+                        "primary-fixed": "#c9e6ff",
+                        "surface-variant": "#111111",
+                        "inverse-surface": "#213145",
+                        "on-tertiary-container": "#009485",
+                        "on-secondary-fixed": "#0d1c2f",
+                        "surface-dim": "#cbdbf5",
+                        "tertiary-container": "#00201c",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#0b1c30",
+                        "secondary-container": "#d5e3fd",
+                        "surface-bright": "#f8f9ff",
+                        "on-tertiary-fixed": "#00201c",
+                        "outline": "#76777d",
+                        "inverse-primary": "#89ceff",
+                        "surface-container": "#e5eeff",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#004c6e",
+                        "surface-container-high": "#dce9ff",
+                        "on-tertiary-fixed-variant": "#005047",
+                        "error-container": "#ffdad6",
+                        "error": "#ba1a1a",
+                        "surface": "#333333",
+                        "primary": "#000000",
+                        "on-secondary-fixed-variant": "#3a485c",
+                        "tertiary-fixed": "#62fae3",
+                        "inverse-on-surface": "#eaf1ff",
+                        "primary-container": "#001e2f",
+                        "outline-variant": "#c6c6cd",
+                        "on-primary-fixed": "#001e2f",
+                        "on-primary": "#ffffff"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        h1,
+        h2,
+        h3,
+        .brand-font {
+            font-family: 'Manrope', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const submitButton = document.getElementById('submitRegistration');
+            submitButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                // Collect form data and submit via AJAX or handle form submission logic here
+                const formData = {
+                    teamName: document.querySelector('input[name="teamName"]').value,
+                    institution: document.querySelector('select[name="institution"]').value,
+                    speaker1Name: document.querySelector('input[name="speaker1Name"]').value,
+                    speaker1Email: document.querySelector('input[name="speaker1Email"]').value,
+                    speaker2Name: document.querySelector('input[name="speaker2Name"]').value,
+                    speaker2Email: document.querySelector('input[name="speaker2Email"]').value,
+                    speaker3Name: document.querySelector('input[name="speaker3Name"]').value,
+                    speaker3Email: document.querySelector('input[name="speaker3Email"]').value,
+                    csrfToken: '{{ csrf_token }}'
+                };
+                console.log('Form Data:', formData);
+                fetch('/rounds/registration/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Success:', data);
+                        // Handle success (e.g., show a success message, redirect, etc.)
+                        document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center"><h1 class="text-3xl font-bold text-green-600">Registration Successful!</h1></div>';
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        // Handle error (e.g., show an error message)
+                        alert('An error occurred while submitting your registration. Please try again.');
+                    });
+            });
+        });
+    </script>
+</head>
+
+<body class="bg-background text-on-surface">
+    
+    <!-- Main Content Area -->
+    <main class="lg:pl-64 pt-24 min-h-screen">
+        <div class="max-w-4xl ml-0 lg:ml-12">
+            <!-- Header Section -->
+            <div class="mb-12">
+                <h1 class="text-5xl font-extrabold tracking-tighter text-on-surface mb-2">Team Registration</h1>
+                <p class="text-secondary font-medium tracking-wide">Enter your team and speaker information below.</p>
+            </div>
+            <form class="space-y-10">
+                <!-- Section 1: Team Identity -->
+                <section class="space-y-6">
+                    <div class="flex items-center gap-4 mb-2">
+                        <span
+                            class="text-xs font-black uppercase tracking-widest text-on-secondary-container bg-secondary-fixed px-3 py-1 rounded-full">Step
+                            01</span>
+                        <h2 class="text-xl font-bold text-on-surface-variant">Team Identity</h2>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-surface-container-low p-8 rounded-xl">
+                        <div class="space-y-2">
+                            <label
+                                class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant ml-1">Team
+                                Name</label>
+                            <input
+                                class="w-full bg-surface-container-lowest border-none rounded-xl p-4 focus:ring-2 focus:ring-tertiary-fixed transition-all placeholder:text-slate-300"
+                                placeholder="e.g. Blue" type="text" name="teamName" />
+                        </div>
+                        <div class="space-y-2">
+                            <label
+                                class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant ml-1">Institution/School</label>
+                            <select
+                                class="w-full bg-surface-container-lowest border-none rounded-xl p-4 focus:ring-2 focus:ring-tertiary-fixed transition-all text-on-surface"
+                                name="institution"
+                                >
+                                <option disabled="true">Select Institution</option>
+                                {% for institution in institutions %}
+                                    <option value="{{ institution.url }}">{{ institution.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                    </div>
+                </section>
+                <!-- Section 2: Speaker Roster -->
+                <section class="space-y-6">
+                    <div class="flex items-center gap-4 mb-2">
+                        <span
+                            class="text-xs font-black uppercase tracking-widest text-on-secondary-container bg-secondary-fixed px-3 py-1 rounded-full">Step
+                            02</span>
+                        <h2 class="text-xl font-bold text-on-surface-variant">Speaker Roster</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <!-- Speaker 1 -->
+                        <div
+                            class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase tracking-tighter">
+                                    Primary Speaker</h3>
+                                <span
+                                    class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold uppercase text-on-secondary-container">Full
+                                        Name</label>
+                                    <input
+                                        class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-tertiary-fixed"
+                                        type="text" name="speaker1Name" />
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold uppercase text-on-secondary-container">Email
+                                        Address</label>
+                                    <input
+                                        class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-tertiary-fixed"
+                                        type="email" name="speaker1Email" />
+                                </div>
+
+                            </div>
+                        </div>
+                        <!-- Speaker 2 -->
+                        <div
+                            class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase tracking-tighter">
+                                    Second Speaker</h3>
+                                <span
+                                    class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold uppercase text-on-secondary-container">Full
+                                        Name</label>
+                                    <input
+                                        class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-tertiary-fixed"
+                                        type="text" name="speaker2Name" />
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold uppercase text-on-secondary-container">Email
+                                        Address</label>
+                                    <input
+                                        class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-tertiary-fixed"
+                                        type="email" name="speaker2Email" />
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Speaker 3 -->
+                        <div
+                            class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase tracking-tighter">
+                                    Third Speaker</h3>
+                                <span
+                                    class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold uppercase text-on-secondary-container">Full
+                                        Name</label>
+                                    <input
+                                        class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-tertiary-fixed"
+                                        type="text" name="speaker3Name" />
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold uppercase text-on-secondary-container">Email
+                                        Address</label>
+                                    <input
+                                        class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-tertiary-fixed"
+                                        type="email" name="speaker3Email" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <!-- Section 3: Finalization -->
+                <section class="space-y-8 pt-6">
+                    <div class="bg-surface-container-highest p-8 rounded-xl border border-primary-container/5">
+                        <div class="flex items-start gap-4">
+                            <input
+                                class="mt-1 w-5 h-5 rounded border-outline text-on-primary-container focus:ring-tertiary-fixed"
+                                id="terms" type="checkbox" required />
+                            <label class="text-sm text-secondary leading-relaxed" for="terms">
+                                I confirm that the information provided is accurate. I agree to the <a
+                                    class="text-on-primary-container font-semibold underline decoration-2 underline-offset-4"
+                                    href="#">Terms and Conditions</a> of the Macleans College Debating Programme.
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+                        <div class="flex items-center gap-2 text-outline">
+                            <span class="material-symbols-outlined"
+                                style="font-variation-settings: 'FILL' 1;">verified_user</span>
+                            <span class="text-xs font-bold uppercase tracking-widest">Secure AES-256 Encrypted
+                                Submission</span>
+                        </div>
+                        <button
+                            class="w-full sm:w-auto px-12 py-5 bg-gradient-to-r from-primary-container to-on-primary-container text-white rounded-xl font-bold text-lg tracking-tight shadow-2xl shadow-on-primary-container/30 hover:scale-[1.02] active:scale-95 transition-all"
+                            type="submit"
+                            id="submitRegistration"
+                            name="submitRegistration">
+                            Submit Registration
+                        </button>
+                    </div>
+                </section>
+            </form>
+            <!-- Footer Meta -->
+            <footer
+                class="mt-20 pt-8 border-t border-outline-variant/20 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-outline">Powered by Tabbycat ©
+                    2026</p>
+                <div class="flex gap-6">
+                    <a class="text-[10px] font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors"
+                        href="#">Privacy Policy</a>
+                    <a class="text-[10px] font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors"
+                        href="#">Support Portal</a>
+                </div>
+            </footer>
+        </div>
+    </main>
+</body>
+
+</html>

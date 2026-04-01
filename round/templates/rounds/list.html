@@ -20,13 +20,32 @@
                     <div class="card-body">
                         <h5 class="card-title">{{ round.name }}</h5>
                         <p class="card-text">Starts at: {{ round.starts_at }}</p>
-                        <a href="{{ round.id }}" class="btn btn-primary">View Details</a>
+                        <a href="{{ round.seq }}" class="btn btn-primary">View Details</a>
                     </div>
                 </div>
             </div>
         {% endfor %}
     </div>
-
+    <h1>Registered Teams</h1>
+    <div class="row">
+        {% for team in teams %}
+            <div class="col-md-4 col-sm-6 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title" title="{{team.long_name}}">{{ team.emoji }} {{ team.short_name }}</h5>
+                        <p class="card-text">Institution: {{ team.institution }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        <div class="col-md-4 col-sm-6 mb-3">
+            <div class="card">
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <a href="{% url 'registration' %}" class="btn btn-success">+ Register</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
