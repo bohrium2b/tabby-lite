@@ -1,0 +1,3 @@
+cache/*
+tabbylite_cache/*
+db.sqlite3
