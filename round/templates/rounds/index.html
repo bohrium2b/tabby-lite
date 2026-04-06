@@ -21,10 +21,19 @@
 </head>
 
 <body>
-    <div hx-post="/" hx-trigger="load" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' class="bg-background text-on-surface font-body min-h-screen flex flex-col items-center">
-        <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
+    <div class="bg-gray-50 text-gray-900 font-body min-h-screen flex flex-col items-center">
+        <div class="flex-1 w-full flex items-center justify-center">
+            <div
+                id="spinner"
+                class="h-12 w-12 rounded-full border-4 border-gray-300 border-t-blue-600 animate-spin"
+                role="status"
+                aria-label="Loading"
+                style="height:48px;width:48px;border-radius:9999px;border:4px solid #ccc;border-top-color:#1d4ed8;display:block;"
+            >
+                <span class="sr-only">Loading</span>
+            </div>
         </div>
+        <div id="main" hx-post="/" hx-trigger="load" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'></div>
     </div>
 </body>
 
