@@ -5,9 +5,9 @@
 
 services:
   - type: web
-    name: tabby-lite
+    name: maclite26
     env: python
-    plan: starter
+    plan: free
     branch: main
     region: oregon
     buildCommand: pip install poetry && poetry install --no-dev && poetry run python manage.py migrate && poetry run python manage.py collectstatic
