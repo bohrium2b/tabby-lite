@@ -1,0 +1,572 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ballot for {{ round.name }} - Pairing {{ pairing.id }}</title>
+    <link href="{% static 'tailwind.css' %}" rel="stylesheet" />
+    
+    <style>
+        .focus-underglow:focus {
+            outline: none;
+            box-shadow: 0 2px 0 0 #62fae3;
+        }
+        .pulsar-wrapper{
+            display:inline-flex;
+            align-items:center;
+            gap:0.75rem;
+        }
+        .pulsar{
+            width:18px;
+            height:18px;
+            border-radius:9999px;
+            background:transparent;
+            position:relative;
+        }
+        .pulsar::after{
+            content:'';
+            position:absolute;
+            inset:0;
+            border-radius:9999px;
+            background:rgba(255,255,255,0.9);
+            transform:scale(0.6);
+            opacity:0.95;
+            animation:pulse 1s infinite ease-in-out;
+        }
+        @keyframes pulse{
+            0%{transform:scale(0.6);opacity:0.95}
+            50%{transform:scale(1.15);opacity:0.4}
+            100%{transform:scale(0.6);opacity:0.95}
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let winnerManualOverride = false;
+
+            const adjudicatorNameElement = document.getElementById('adjudicator_full_name');
+            const adjudicatorInitialsElement = document.getElementById('adjudicator_initials');
+
+            const getInitials = function(fullName) {
+                if (!fullName) {
+                    return 'AD';
+                }
+
+                const parts = fullName.trim().split(/\s+/).filter(Boolean);
+                if (parts.length === 1) {
+                    return parts[0].slice(0, 2).toUpperCase();
+                }
+
+                return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+            };
+
+            if (adjudicatorNameElement && adjudicatorInitialsElement) {
+                adjudicatorInitialsElement.textContent = getInitials(adjudicatorNameElement.dataset.fullName || adjudicatorNameElement.textContent);
+            }
+
+            const getTeamName = function(fieldName, type) {
+                const prefix = 'speaker_';
+                const suffix = type === 'name' ? '_name' : '_points';
+                const roleSuffixes = ['_one', '_two', '_three', '_reply', '_total'];
+
+                if (!fieldName.startsWith(prefix) || !fieldName.endsWith(suffix)) {
+                    return '';
+                }
+
+                let base = fieldName.slice(prefix.length, -suffix.length);
+                roleSuffixes.forEach(role => {
+                    if (base.endsWith(role)) {
+                        base = base.slice(0, -role.length);
+                    }
+                });
+
+                return base;
+            };
+
+            const winnerButtons = Array.from(document.querySelectorAll('[data-winner-side]'));
+            const winnerInput = document.getElementById('winning_side');
+            const winnerWarning = document.getElementById('winner_points_warning');
+            const teamCards = Array.from(document.querySelectorAll('[data-team-side]'));
+
+            const getTeamCardBySide = function(side) {
+                return teamCards.find(card => card.dataset.teamSide === side) || null;
+            };
+
+            const getTeamTotalBySide = function(side) {
+                const card = getTeamCardBySide(side);
+                if (!card) {
+                    return 0;
+                }
+
+                const totalInput = card.querySelector('input[name$="_total_points"]');
+                return parseFloat(totalInput ? totalInput.value : 0) || 0;
+            };
+
+            const getLeadingSide = function() {
+                if (teamCards.length < 2) {
+                    return null;
+                }
+
+                const sideA = teamCards[0].dataset.teamSide;
+                const sideB = teamCards[1].dataset.teamSide;
+                const totalA = getTeamTotalBySide(sideA);
+                const totalB = getTeamTotalBySide(sideB);
+
+                if (totalA === totalB) {
+                    return null;
+                }
+
+                return totalA > totalB ? sideA : sideB;
+            };
+
+            const applyWinnerSelectionStyles = function(selectedSide) {
+                winnerButtons.forEach(button => {
+                    const isSelected = button.dataset.winnerSide === selectedSide;
+                    if (isSelected) {
+                        button.classList.add('bg-surface-container-highest', 'text-on-surface', 'shadow-sm');
+                        button.classList.remove('text-secondary');
+                    } else {
+                        button.classList.remove('bg-surface-container-highest', 'text-on-surface', 'shadow-sm');
+                        button.classList.add('text-secondary');
+                    }
+                });
+            };
+
+            const updateManualWinnerWarning = function() {
+                if (!winnerWarning || !winnerInput) {
+                    return;
+                }
+
+                const selectedSide = winnerInput.value;
+                const leadingSide = getLeadingSide();
+
+                if (!winnerManualOverride || !selectedSide || !leadingSide || selectedSide === leadingSide) {
+                    winnerWarning.classList.add('hidden');
+                    winnerWarning.textContent = '';
+                    document.getElementById('submit_ballot').disabled = false;
+                    return;
+                }
+
+                const selectedTotal = getTeamTotalBySide(selectedSide).toFixed(1);
+                const leadingTotal = getTeamTotalBySide(leadingSide).toFixed(1);
+                winnerWarning.textContent = `Warning: Selected winner has ${selectedTotal} points, but ${leadingSide.toUpperCase()} has ${leadingTotal} points.`;
+                winnerWarning.classList.remove('hidden');
+                // Disable submit button
+                document.getElementById('submit_ballot').disabled = true;
+            };
+
+            const setWinnerSelection = function(side, manualSelection) {
+                if (!winnerInput) {
+                    return;
+                }
+
+                winnerInput.value = side || '';
+                winnerManualOverride = manualSelection;
+                applyWinnerSelectionStyles(side);
+                updateManualWinnerWarning();
+            };
+
+            const syncWinnerWithTotals = function() {
+                if (winnerManualOverride) {
+                    updateManualWinnerWarning();
+                    return;
+                }
+
+                setWinnerSelection(getLeadingSide(), false);
+            };
+
+            winnerButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    setWinnerSelection(this.dataset.winnerSide, true);
+                });
+            });
+
+            // Total all speaker points for each team
+            const teamInputs = document.querySelectorAll('input[name$="_points"]');
+            teamInputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    const teamName = getTeamName(this.name, 'points');
+                    const speakerOneInput = document.querySelector(`input[name="speaker_${teamName}_one_points"]`);
+                    const speakerTwoInput = document.querySelector(`input[name="speaker_${teamName}_two_points"]`);
+                    const speakerThreeInput = document.querySelector(`input[name="speaker_${teamName}_three_points"]`);
+                    const speakerReplyInput = document.querySelector(`input[name="speaker_${teamName}_reply_points"]`);
+                    const totalInput = document.querySelector(`input[name="speaker_${teamName}_total_points"]`);
+
+                    if (!speakerOneInput || !speakerTwoInput || !speakerThreeInput || !speakerReplyInput || !totalInput) {
+                        return;
+                    }
+
+                    const speakerOnePoints = parseFloat(speakerOneInput.value) || 0;
+                    const speakerTwoPoints = parseFloat(speakerTwoInput.value) || 0;
+                    const speakerThreePoints = parseFloat(speakerThreeInput.value) || 0;
+                    const speakerReplyPoints = parseFloat(speakerReplyInput.value) || 0;
+                    const totalPoints = speakerOnePoints + speakerTwoPoints + speakerThreePoints + speakerReplyPoints;
+                    totalInput.value = totalPoints.toFixed(1);
+                    syncWinnerWithTotals();
+                });
+                // Validate input
+                input.addEventListener('blur', function() {
+                    // Make sure the input is within the valid range
+                    if (this.value > this.max) {
+                        this.value = this.max;
+                    }
+                    if (this.value < this.min) {
+                        this.value = this.min;
+                    }
+                    syncWinnerWithTotals();
+                });
+
+            });
+
+            // If a person speaks twice in speeches 1-3, display an 'iron-person' warning
+            const submitBallotBtn = document.getElementById("submit_ballot");
+            const speakerSelects = document.querySelectorAll('select[name$="_name"]');
+            speakerSelects.forEach(select => {
+                select.addEventListener('change', function() {
+                    const teamName = getTeamName(this.name, 'name');
+                    const speaker1Select = document.querySelector(`select[name="speaker_${teamName}_one_name"]`);
+                    const speaker2Select = document.querySelector(`select[name="speaker_${teamName}_two_name"]`);
+                    const speaker3Select = document.querySelector(`select[name="speaker_${teamName}_three_name"]`);
+                    const warningElement = document.getElementById(`team_${teamName}_iron_person`);
+
+                    if (!speaker1Select || !speaker2Select || !speaker3Select || !warningElement) {
+                        return;
+                    }
+
+                    const speaker1Name = speaker1Select.selectedOptions[0].text;
+                    const speaker2Name = speaker2Select.selectedOptions[0].text;
+                    const speaker3Name = speaker3Select.selectedOptions[0].text;
+
+                    if (speaker1Name && (speaker1Name === speaker2Name || speaker1Name === speaker3Name) && speaker1Name !== "Select a speaker") {
+                        warningElement.style.display = 'block';
+                        warningElement.innerHTML = `<strong>Warning:</strong> ${speaker1Name} is speaking twice in this debate. The ballot cannot be submitted online. Please contact the tournament director.`;
+                        // Disable the submit button
+                        if (submitBallotBtn) submitBallotBtn.disabled = true;
+                    } else if (speaker2Name && speaker2Name === speaker3Name && speaker2Name !== "Select a speaker") {
+                        warningElement.style.display = 'block';
+                        warningElement.innerHTML = `<strong>Warning:</strong> ${speaker2Name} is speaking twice in this debate. The ballot cannot be submitted online. Please contact the tournament director.`;
+                        // Disable the submit button
+                        if (submitBallotBtn) submitBallotBtn.disabled = true;
+                    } else {
+                        warningElement.style.display = 'none';
+                        if (submitBallotBtn) submitBallotBtn.disabled = false;
+                    }
+                });
+            });
+            // Utility to read Django csrftoken from cookie
+            const getCookie = (name) => {
+                const cookieString = document.cookie || '';
+                const cookies = cookieString.split('; ').map(c => c.split('='));
+                const found = cookies.find(c => c[0] === name);
+                return found ? decodeURIComponent(found[1]) : null;
+            };
+
+            if (submitBallotBtn) {
+                submitBallotBtn.addEventListener("click", function() {
+                    const csrfToken = getCookie('csrftoken');
+                    const loadingEl = document.getElementById('submit_loading');
+
+                    const showError = (msg, focusEl) => {
+                        const errorAlert = document.createElement("div");
+                        errorAlert.className = "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative";
+                        errorAlert.textContent = msg;
+                        document.body.insertBefore(errorAlert, document.body.firstChild);
+                        if (focusEl && typeof focusEl.focus === 'function') focusEl.focus();
+                        return;
+                    };
+
+                    // Client-side validation before submitting
+                    for (const card of teamCards) {
+                        const short = card.dataset.teamLabel;
+                        const roles = ["one", "two", "three", "reply"];
+                        let computedTotal = 0;
+                        for (const r of roles) {
+                            const select = card.querySelector(`select[name="speaker_${short}_${r}_name"]`);
+                            const input = card.querySelector(`input[name="speaker_${short}_${r}_points"]`);
+                            if (!select || !select.value) {
+                                showError(`Please select all speakers for ${short}.` , select || input);
+                                return;
+                            }
+                            const val = input ? parseFloat(input.value) : NaN;
+                            if (isNaN(val)) {
+                                showError(`Please enter valid points for ${short} (${r}).`, input);
+                                return;
+                            }
+                            if (input && input.min && val < parseFloat(input.min)) {
+                                showError(`Points for ${short} (${r}) must be at least ${input.min}.`, input);
+                                return;
+                            }
+                            if (input && input.max && val > parseFloat(input.max)) {
+                                showError(`Points for ${short} (${r}) must be at most ${input.max}.`, input);
+                                return;
+                            }
+                            computedTotal += val;
+                        }
+                        const totalInput = card.querySelector(`input[name="speaker_${short}_total_points"]`);
+                        if (totalInput) {
+                            const tval = parseFloat(totalInput.value) || 0;
+                            if (Math.abs(tval - computedTotal) > 0.05) {
+                                showError(`Team total for ${short} does not match sum of speaker points.`, totalInput);
+                                return;
+                            }
+                        }
+                    }
+
+                    // Ensure a winning side is selected
+                    const winningSide = document.getElementById('winning_side').value;
+                    if (!winningSide) {
+                        showError('Please select the winning side before submitting.', document.getElementById('winning_side'));
+                        return;
+                    }
+
+                    // Ensure winning side matches the team that has the most points
+                    const winningTeam = document.querySelector(`input[name="team${winningSide}"]`);
+                    if (!winningTeam) {
+                        showError('Please select a valid winning team.', document.getElementById('winning_side'));
+                        return;
+                    }
+
+
+                    // Passed validation — show loading and disable button while request is inflight
+                    if (loadingEl) loadingEl.classList.remove('hidden');
+                    submitBallotBtn.disabled = true;
+
+                    const collectTeamData = (card) => {
+                        const short = card.dataset.teamLabel;
+                        const teamUrl = card.dataset.teamUrl;
+                        const roles = ["one", "two", "three", "reply"];
+                        const speakers = roles.map(r => {
+                            const select = card.querySelector(`select[name="speaker_${short}_${r}_name"]`);
+                            const input = card.querySelector(`input[name="speaker_${short}_${r}_points"]`);
+                            return {
+                                id: select ? select.value || null : null,
+                                points: input ? (parseFloat(input.value) || 0) : 0,
+                                role: r === 'one' ? 'first' : r === 'two' ? 'second' : r === 'three' ? 'third' : 'reply'
+                            };
+                        });
+
+                        const totalInput = card.querySelector(`input[name="speaker_${short}_total_points"]`);
+                        return {
+                            team: teamUrl,
+                            speakers,
+                            win: document.getElementById('winning_side').value === card.dataset.teamSide,
+                            points: totalInput ? (parseFloat(totalInput.value) || 0) : 0
+                        };
+                    };
+                    // Validate data - all fields are filled out, totals match, no iron person, etc.
+                    const validateData = (card) => {
+                        // Validate data - all fields are filled out fully, totals match, no iron person, no low-points debate where winner has fewer points
+                        
+                    };
+
+                    const payload = {};
+                    teamCards.forEach((card, idx) => {
+                        payload[`team${idx+1}`] = collectTeamData(card);
+                    });
+
+                    fetch("", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    }).then(response => {
+                        if (response.ok) {
+                            document.body.innerHTML = '<div class="flex items-center justify-center h-screen"><p class="text-2xl font-bold text-green-500">Ballot submitted successfully!</p></div>';
+                        } else {
+                            const errorAlert = document.createElement("div");
+                            errorAlert.className = "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative";
+                            errorAlert.textContent = "Error submitting ballot. Please try again.";
+                            document.body.insertBefore(errorAlert, document.body.firstChild);
+                        }
+                    }).catch(err => {
+                        const errorAlert = document.createElement("div");
+                        errorAlert.className = "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative";
+                        errorAlert.textContent = "Network error submitting ballot. Please try again.";
+                        document.body.insertBefore(errorAlert, document.body.firstChild);
+                    }).finally(() => {
+                        if (loadingEl) loadingEl.classList.add('hidden');
+                        submitBallotBtn.disabled = false;
+                    });
+                });
+            }
+
+            syncWinnerWithTotals();
+
+        });
+
+    </script>
+</head>
+
+<body class="bg-background text-on-surface font-body selection:bg-surface-container-high selection:text-on-surface">
+    {% if not error %}
+    <main class="min-h-screen px-6 py-12 md:py-16">
+        <div class="mx-auto w-full max-w-7xl">
+            <header class="mb-12 text-center md:mb-16">
+                <div class="mb-4 inline-flex rounded-full bg-secondary-container px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.2rem] text-on-surface-variant">
+                    Adjudication
+                </div>
+                <h1 class="font-headline text-4xl font-extrabold  text-primary md:text-6xl">
+                    Ballot for {{ round.name }} - Pairing {{ pairing.id }}
+                </h1>
+                <div class="mt-6 flex flex-col items-center gap-4">
+                    <div class="flex items-center gap-4 rounded-full bg-surface-container-low px-4 py-3 shadow-sm ring-1 ring-outline/10">
+                        <div id="adjudicator_initials" class="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-tertiary-fixed-dim to-secondary-fixed-dim font-headline text-lg font-extrabold text-white shadow-sm">
+                            {{ pairing.adjudicators.chair.name|default:'AD'|slice:':2'|upper }}
+                        </div>
+                        <div class="text-left">
+                            <p id="adjudicator_full_name" data-full-name="{{ pairing.adjudicators.chair.name }}" class="font-headline text-lg font-bold text-on-surface md:text-xl">
+                                {{ pairing.adjudicators.chair.name }}
+                            </p>
+                            <p class="text-sm text-secondary">Adjudicator</p>
+                        </div>
+                    </div>
+                    <a href="/ballot/" class="inline-flex items-center rounded-full border border-outline/15 bg-surface-container-low px-4 py-2 text-xs font-semibold uppercase tracking-[0.14rem] text-secondary transition-colors hover:bg-surface-container-highest hover:text-on-surface">
+                        Not you?
+                    </a>
+                </div>
+                <p class="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-secondary md:text-lg">
+                    Record all speaker points carefully. Final submissions are considered definitive.
+                </p>
+            </header>
+
+            <section class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                {% for team in pairing.teams %}
+                <article class="rounded-xl bg-surface-container-low p-6 shadow-sm ring-1 ring-outline/10 md:p-8" data-team-side="{{ team.side|lower }}" data-team-label="{{ team.team.short_name }}" data-team-url="{{ team.team.url }}">
+                    <div class="mb-6 flex items-center justify-between gap-4">
+                        <h2 class="font-headline text-2xl font-bold  text-on-surface md:text-3xl">
+                            {{ team.team.emoji }} {{ team.team.short_name }}
+                        </h2>
+                        <span class="rounded-full bg-surface-container-highest px-3 py-1 font-label text-[10px] font-bold uppercase tracking-[0.14rem] text-on-surface-variant">
+                            {{ team.side }}
+                        </span>
+                    </div>
+
+                    <div class="mb-5 hidden rounded-lg border border-warning/30 bg-warning-bg px-4 py-3 text-sm text-warning" id="team_{{team.team.short_name}}_iron_person">
+                        <strong>Warning:</strong> Someone is speaking twice in this debate.
+                    </div>
+
+                    <div class="space-y-5">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-12 sm:items-end">
+                            <div class="sm:col-span-8">
+                                <label for="speaker_{{ team.team.short_name }}_one_name" class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Speaker One</label>
+                                <select name="speaker_{{ team.team.short_name }}_one_name" class="focus-underglow w-full rounded-xl border-none bg-surface-container-lowest px-4 py-3 text-on-surface">
+                                    <option value="">Select a speaker</option>
+                                    {% for speaker in team.team.speakers %}
+                                        <option value="{{ speaker.url }}">{{ speaker.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="sm:col-span-4">
+                                <label class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Points</label>
+                                <input type="number" min="60" max="80" step="0.1" name="speaker_{{ team.team.short_name }}_one_points" class="focus-underglow w-full rounded-xl border-none bg-surface-container-lowest px-4 py-3 text-on-surface" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-12 sm:items-end">
+                            <div class="sm:col-span-8">
+                                <label for="speaker_{{ team.team.short_name }}_two_name" class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Speaker Two</label>
+                                <select name="speaker_{{ team.team.short_name }}_two_name" class="focus-underglow w-full rounded-xl border-none bg-surface-container-lowest px-4 py-3 text-on-surface">
+                                    <option value="">Select a speaker</option>
+                                    {% for speaker in team.team.speakers %}
+                                        <option value="{{ speaker.url }}">{{ speaker.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="sm:col-span-4">
+                                <label class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Points</label>
+                                <input type="number" min="60" max="80" step="0.1" name="speaker_{{ team.team.short_name }}_two_points" class="focus-underglow w-full rounded-xl border-none bg-surface-container-lowest px-4 py-3 text-on-surface" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-12 sm:items-end">
+                            <div class="sm:col-span-8">
+                                <label for="speaker_{{ team.team.short_name }}_three_name" class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Speaker Three</label>
+                                <select name="speaker_{{ team.team.short_name }}_three_name" class="focus-underglow w-full rounded-xl border-none bg-surface-container-lowest px-4 py-3 text-on-surface">
+                                    <option value="">Select a speaker</option>
+                                    {% for speaker in team.team.speakers %}
+                                        <option value="{{ speaker.url }}">{{ speaker.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="sm:col-span-4">
+                                <label class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Points</label>
+                                <input type="number" min="60" max="80" step="0.1" name="speaker_{{ team.team.short_name }}_three_points" class="focus-underglow w-full rounded-xl border-none bg-surface-container-lowest px-4 py-3 text-on-surface" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-12 sm:items-end">
+                            <div class="sm:col-span-8">
+                                <label for="speaker_{{ team.team.short_name }}_reply_name" class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Reply Speaker</label>
+                                <select name="speaker_{{ team.team.short_name }}_reply_name" class="focus-underglow w-full rounded-xl border-none bg-surface-container-lowest px-4 py-3 text-on-surface">
+                                    <option value="">Select a speaker</option>
+                                    {% for speaker in team.team.speakers %}
+                                        <option value="{{ speaker.url }}">{{ speaker.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="sm:col-span-4">
+                                <label class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Points</label>
+                                <input type="number" min="30" max="40" step="0.1" name="speaker_{{ team.team.short_name }}_reply_points" class="focus-underglow w-full rounded-xl border-none bg-surface-container-lowest px-4 py-3 text-on-surface" />
+                            </div>
+                        </div>
+
+                        <div class="mt-2 grid grid-cols-1 gap-4 border-t border-outline/15 pt-5 sm:grid-cols-12 sm:items-end">
+                            <div class="sm:col-span-8">
+                                <p class="font-headline text-xl font-extrabold uppercase  text-primary">Total</p>
+                            </div>
+                            <div class="sm:col-span-4">
+                                <label class="mb-2 block font-label text-xs font-bold uppercase tracking-[0.14rem] text-secondary">Team Points</label>
+                                <input type="number" min="0" max="100" step="0.1" name="speaker_{{ team.team.short_name }}_total_points" class="w-full rounded-xl border-none bg-surface-variant px-4 py-3 font-semibold text-on-surface-variant" readonly id="team_{{ team.team.short_name }}_points"/>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </section>
+
+            <section class="mx-auto mt-10 w-full max-w-3xl text-center">
+                <label class="mb-4 block font-label text-xs font-bold uppercase tracking-[0.2rem] text-secondary">Result</label>
+                <div class="rounded-full bg-surface-container-low p-2 ring-1 ring-outline/15">
+                    <div class="grid grid-cols-2 gap-2">
+                        {% for team in pairing.teams %}
+                        <button type="button" data-winner-side="{{ team.side|lower }}" class="rounded-full px-4 py-4 font-headline text-lg font-extrabold  text-secondary transition-all md:px-8 md:text-xl">
+                            {{ team.side|upper }} WINS
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                <input type="hidden" id="winning_side" name="winning_side" value="" />
+                <p id="winner_points_warning" class="hidden mt-4 rounded-lg border border-warning/30 bg-warning-bg px-4 py-3 text-sm text-warning"></p>
+            </section>
+
+            <section class="pb-8 pt-10 text-center md:pt-14">
+                <div class="group relative inline-flex items-center">
+                                        <div class="absolute -inset-0.5 bg-surface-container-lowest rounded-full blur opacity-20 transition duration-500 group-hover:opacity-40"></div>
+                                        <div class="pulsar-wrapper">
+                                            <button id="submit_ballot" class="relative rounded-full bg-primary px-10 py-4 font-headline text-xl font-bold  text-on-primary transition-transform active:scale-[0.98] md:px-14 md:py-5 md:text-2xl disabled:opacity-50">
+                                                    <span id="submit_ballot_label">Submit Ballot</span>
+                                            </button>
+                                            <div id="submit_loading" class="pulsar hidden" aria-hidden="true"></div>
+                                        </div>
+                </div>
+                <p class="mt-4 font-label text-[10px] uppercase tracking-[0.16rem] text-secondary/70">
+                    Once submitted, this ballot cannot be edited.
+                </p>
+            </section>
+        </div>
+    </main>
+    {% else %}
+        <main class="min-h-screen px-6 py-16">
+            <div class="mx-auto max-w-2xl rounded-xl bg-surface-container-low p-8 text-center shadow-sm ring-1 ring-outline/10">
+                <p class="text-lg font-semibold text-red-700">{{ error }}</p>
+                <button class="mt-6 rounded-full bg-red-600 px-6 py-3 font-label text-sm font-bold uppercase tracking-wide text-white" onclick="window.location.replace('/ballot/')">Go back</button>
+            </div>
+        </main>
+    {% endif %}
+
+</body>
+
+</html>

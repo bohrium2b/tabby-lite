@@ -28,6 +28,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LOGIN_URL = '/account/login/'
+LOGIN_REDIRECT_URL = '/account/profile/'
 
 # Application definition
 
@@ -38,10 +40,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_vite",
     "round",
-    "ballot",
-    "api",
+    "account"
 ]
 
 MIDDLEWARE = [
@@ -138,4 +138,12 @@ DJANGO_VITE = {
     "dev_server_host": "miniature-invention-qj4wgg7vrvc6w9g-5173.app.github.dev/static/ballot/",
     "dev_server_protocol": "https"
   },
+}
+
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": BASE_DIR / "cache",
+    }
 }

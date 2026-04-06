@@ -1,27 +1,34 @@
 from django.shortcuts import render, HttpResponse
+from django.views.decorators.cache import cache_page
 from regex import match
 from round.emojis import EMOJI_LIST
-from round.utils import get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_venue, create_team, create_speaker, get_all_teams
+from round.models import BallotPairing
+from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, create_ballot, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_venue, create_team, create_speaker, get_all_teams, generate_passphrase
+from django.contrib.auth.decorators import login_required
+from requests.exceptions import HTTPError
 import json
 import random
 
 # Create your views here.
 def rounds_list(request):
-    rounds = get_all_rounds()  # Replace with actual function to fetch rounds
-    teams = get_all_teams()
-    for team in teams:
-        # Replace institution URL with institution name
-        institution_name = get_institution(team.institution).name
-        team.institution = institution_name
-    return render(request, 'rounds/list.html', {'rounds': rounds, 'teams': teams})
+    if request.method == "POST":
+        rounds = get_all_rounds()  # Replace with actual function to fetch rounds
+        teams = get_all_teams()
+        for team in teams:
+            # Replace institution URL with institution name
+            institution_name = get_institution(team.institution).name
+            team.institution = institution_name
+        return render(request, 'rounds/list.html', {'rounds': rounds, 'teams': teams})
+    return render(request, 'rounds/index.html')
 
 
-def rounds_detail(request, round_id):
+@login_required
+def rounds_detail(request, round_seq):
     # Replace with actual function to fetch a single round
-    round = get_round_by_id(round_id)
+    round = get_round_by_id(round_seq)
     
     try:
-        draw = get_round_draw(round_id)
+        draw = get_round_draw(round_seq)
     except ValueError as e:
         # Handle the error, e.g., by displaying an error message
         return render(request, 'rounds/detail.html', {'round': round, 'error': str(e)})
@@ -32,15 +39,27 @@ def rounds_detail(request, round_id):
         location = get_venue(pairing.venue)
         pairing.location = location
         for team in pairing.teams:
-            print(team["team"])
-            team_name = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', team["team"]).group(1)).short_name
+            team_name = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', team["team"]).group(1))
             team["team"] = team_name
+        pairing.adjudicators = {"chair": get_adjudicator(pairing.adjudicators["chair"]), "panellists": [get_adjudicator(panellist) for panellist in pairing.adjudicators["panellists"]], "trainees": [get_adjudicator(trainee) for trainee in pairing.adjudicators["trainees"]]}
+        # Generate a ballot pairing
+        # If one doesn't already exist
+        if not BallotPairing.objects.filter(round_seq=round_seq, pairing_seq=pairing.id).exists():
+            ballot_pairing = BallotPairing.objects.create(
+                round_seq=round_seq,
+                pairing_seq=pairing.id,
+                passphrase=generate_passphrase()
+            )
+        else:
+            ballot_pairing = BallotPairing.objects.get(round_seq=round_seq, pairing_seq=pairing.id)
+        pairing.ballot_pairing = ballot_pairing
     return render(request, 'rounds/detail.html', {'round': round, 'draw': draw})
 
 
-def draw_csv(request, round_id):
+@login_required
+def draw_csv(request, round_seq):
     try:
-        draw = get_round_draw(round_id)
+        draw = get_round_draw(round_seq)
     except ValueError as e:
         # Handle the error, e.g., by displaying an error message
         return render(request, 'rounds/detail.html', {'error': str(e)})
@@ -59,7 +78,7 @@ def draw_csv(request, round_id):
         csv_content += f"{emailteam2}, {team2}, {sideteam2}, {team1}, {sideteam1}, {venue}\n"
 
     response = HttpResponse(csv_content, content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="round_{round_id}_draw.csv"'
+    response['Content-Disposition'] = f'attachment; filename="round_{round_seq}_draw.csv"'
     return response
 
 
@@ -93,7 +112,8 @@ def registration(request):
             'institution': body.get('institution')
         }
         print(speaker1, speaker2, speaker3)
-        team = create_team(short_name=f"{institution.code} {body.get('teamName')}", long_name=f"{institution.name} {body.get('teamName')}", reference=body.get('teamName'), emoji=random.choice(EMOJI_LIST), institution=institution.url)
+        print(f"Institution: {institution.name}")
+        team = create_team(short_name=f"{institution.code} {body.get('teamName')}", long_name=f"{institution.name} {body.get('teamName')}", reference=body.get('teamName'), emoji=random.choice(EMOJI_LIST)[0], institution=institution.url)
         team_id = team.id
         create_speaker(speaker1['name'], team_id=team_id, email=speaker1['email'], institution=speaker1['institution'])
         create_speaker(speaker2['name'], team_id=team_id, email=speaker2['email'], institution=speaker2['institution'])
@@ -103,3 +123,94 @@ def registration(request):
     
     institutions = get_all_institutions()
     return render(request, 'rounds/registration.html', {'institutions': institutions})
+
+
+def ballot(request, passphrase):
+    try:
+        ballot_pairing = BallotPairing.objects.get(passphrase=passphrase)
+        # Now get round and pairing 
+        round = get_round_by_id(ballot_pairing.round_seq)
+        pairings = get_round_draw(round.seq)
+        pairing = None
+        for xpairing in pairings:
+            if ballot_pairing.pairing_seq == xpairing.id:
+                pairing = xpairing
+        for team in pairing.teams:
+            team["team"] = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', team["team"]).group(1))
+        print(pairing.teams)
+        pairing.adjudicators = {"chair": get_adjudicator(pairing.adjudicators["chair"]), "panellists": [get_adjudicator(panellist) for panellist in pairing.adjudicators["panellists"]], "trainees": [get_adjudicator(trainee) for trainee in pairing.adjudicators["trainees"]]}
+    except BallotPairing.DoesNotExist:
+        return render(request, 'rounds/ballot.html', {'error': 'Invalid passphrase'})
+
+    # On submit to POST
+    if request.method == "POST":
+        # Pull parameters from body - {"team1": {"team": <team_id>, "speakers": [{"id": <speaker_id>, "points": <points>, "role": "first" | "second" | "third" | "reply"}, ...], "win": <bool>}, "team2": {...}}
+        body = json.loads(request.body.decode('utf-8'))
+        ballot_team1 = body.get("team1")
+        ballot_team2 = body.get("team2")
+        # Now create SpeechResults
+        speech_results1 = []
+        for speaker_data in ballot_team1.get("speakers"):
+            speech_result = Speech(
+                ghost=False,
+                score=speaker_data.get("points"),
+                speaker=speaker_data.get("id"), # In the form of a URL
+            )
+            speech_results1.append(speech_result)
+
+        speech_results2 = []
+        for speaker_data in ballot_team2.get("speakers"):
+            speech_result = Speech(
+                ghost=False,
+                score=speaker_data.get("points"),
+                speaker=speaker_data.get("id"), # In the form of a URL
+            )
+            speech_results2.append(speech_result)
+        # Now create ResultTeam
+        result_team1 = ResultTeam(
+            side=pairing.teams[0]["side"],
+            points=1 if ballot_team1.get("win") else 0,
+            win=ballot_team1.get("win"),
+            score=ballot_team1.get("points"),
+            team=pairing.teams[0]["team"].url,
+            speeches=speech_results1
+        )
+        print(result_team1)
+        result_team2 = ResultTeam(
+            side=pairing.teams[1]["side"],
+            points=1 if ballot_team2.get("win") else 0,
+            win=ballot_team2.get("win"),
+            score=ballot_team2.get("points"),
+            team=pairing.teams[1]["team"].url,
+            speeches=speech_results2
+        )
+        print(result_team2)
+        # Now create Sheet
+        sheet = Sheet(
+            teams=[result_team1, result_team2],
+            adjudicator=pairing.adjudicators["chair"].url
+        )
+        print(sheet)
+        # Create Result
+        result = Result(
+            sheets=[sheet],
+        )
+        print(result)
+        # Submit Ballot
+        try:
+            completed_ballot = create_ballot(round_seq=round.seq, pairing_id=pairing.id, result=result, single_adj=False, submitter=pairing.adjudicators["chair"], confirmed=True)
+            ballot_pairing.completed = True
+            ballot_pairing.save()
+            return HttpResponse(json.dumps({"success": True}))
+        except HTTPError as e:
+            print(e)
+            return HttpResponse(json.dumps({"error": "Failed to submit ballot"}), status=500)
+        
+    if ballot_pairing.completed:
+        return render(request, 'rounds/empty_ballot.html', {'error': 'This ballot has already been submitted.'})
+    return render(request, 'rounds/ballot.html', {'ballot_pairing': ballot_pairing, 'round': round, 'pairing': pairing})
+
+
+@cache_page(3600)
+def empty_ballot(request):
+    return render(request, 'rounds/empty_ballot.html')

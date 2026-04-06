@@ -2,8 +2,20 @@ from typing import TypedDict
 
 import requests
 import json
+import secrets
 from django.conf import settings
 from django.core.cache import cache
+
+
+def load_wordlist():
+    """
+    Load round/eff_large_wordlist.txt.
+    """
+    with open("round/eff_large_wordlist.txt", "r") as f:
+        return [line.strip().split("\t")[1] for line in f]
+    
+
+
 
 ROOT_URI = settings.TABBY_ROOT
 TABBY_AUTHENTICATION_TOKEN = settings.TABBY_AUTHENTICATION_TOKEN
@@ -12,7 +24,8 @@ ROUND_DRAW_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_ROUND_DRAW_CACHE_TIM
 VENUE_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_VENUE_CACHE_TIMEOUT_SECONDS", 3600*24*2)
 ROUND_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_ROUND_CACHE_TIMEOUT_SECONDS", 3600)
 INSTITUTION_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_INSTITUTION_CACHE_TIMEOUT_SECONDS", 3600)
-
+ANY_ALL_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_ANY_ALL_CACHE_TIMEOUT_SECONDS", 60*15)
+WORDLIST = load_wordlist()
 
 class RoundLinks(TypedDict):
     pairing: str
@@ -135,6 +148,93 @@ class Institution:
         self.code = code
 
 
+class Motion:
+    def __init__(self, id, url, text, reference, info_slide, info_slide_plain, seq):
+        self.id = id
+        self.url = url
+        self.text = text
+        self.reference = reference
+        self.info_slide = info_slide
+        self.info_slide_plain = info_slide_plain
+        self.seq = seq
+
+
+class Speech:
+    def __init__(self, ghost, score, speaker):
+        self.ghost = ghost
+        self.score = score
+        self.speaker = speaker
+    
+    def __str__(self):
+        return f"Speech(ghost={self.ghost}, score={self.score}, speaker={self.speaker})"
+
+
+
+class ResultTeam:
+    def __init__(self, side, points, win, score, team, speeches: list[Speech]):
+        self.side = side
+        self.points = points
+        self.win = win
+        self.score = score
+        self.team = team
+        self.speeches = speeches
+    def __str__(self):
+        return f"ResultTeam(side={self.side}, points={self.points}, win={self.win}, score={self.score}, team={self.team}, speeches={' ,'.join(str(speech) for speech in self.speeches)})"
+
+
+
+class Sheet:
+    def __init__(self, teams: list[ResultTeam], adjudicator: Adjudicator):
+        self.teams = teams
+        self.adjudicator = adjudicator
+    def __str__(self):
+        return f"Sheet(teams={', '.join(str(team) for team in self.teams)}, adjudicator={self.adjudicator})"
+
+
+
+class Result:
+    def __init__(self, sheets: list[Sheet]):
+        self.sheets = sheets
+    def __str__(self):
+        return f"Result(sheets={self.sheets})"
+
+
+class Ballot:
+    def __init__(self, id, result: Result, motion=None, url=None, version=None, submitter_type=None, confirmed=None, private_url=None, confirm_timestamp=None, ip_address=None, discarded=None, single_adj=None, forfeit=None, submitter=None, confirmer=None, participant_submitter=None, vetos=None, timestamp=None):
+        self.id = id
+        self.result = result
+        self.motion = motion
+        self.url = url
+        self.participant_submitter = participant_submitter
+        self.vetos = vetos
+        self.timestamp = timestamp
+        self.version = version
+        self.submitter_type = submitter_type
+        self.confirmed = confirmed
+        self.private_url = private_url
+        self.confirm_timestamp = confirm_timestamp
+        self.ip_address = ip_address
+        self.discarded = discarded
+        self.single_adj = single_adj
+        self.forfeit = forfeit
+        self.submitter = submitter
+        self.confirmer = confirmer
+
+    def __str__(self):
+        return f"Ballot(id={self.id}, result={self.result}, motion={self.motion})"
+
+
+def generate_passphrase():
+    """
+    Create a unique 3-word + 4 random upper/lowercase letters passphrase.
+    """
+    words = [secrets.choice(WORDLIST) for _ in range(3)]
+    letters = ''.join(secrets.choice('abcdefghjkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ') for _ in range(3))
+    numbers = ''.join(secrets.choice('123456789') for _ in range(2))
+    return '-'.join(words) + '-' + letters + numbers
+
+
+
 def get_all_rounds(raw=False):
     """
 
@@ -174,25 +274,40 @@ def get_all_rounds(raw=False):
 
     ]
     """
+    cache_key = "tabby:round"
+    cached_round_data = cache.get(cache_key)
+    if cached_round_data is not None:
+        if raw:
+            return cached_round_data
+        return [Round(**round_data) for round_data in cached_round_data]
     response = requests.get(f"{ROOT_URI}/rounds")
-    print(response.text)
     rounds_data = json.loads(response.text)
+    cache.set(cache_key, rounds_data, timeout=ANY_ALL_CACHE_TIMEOUT_SECONDS)
     if raw:
         return rounds_data
 
     return [Round(**round_data) for round_data in rounds_data]
 
 
-def get_round_by_id(round_id, raw=False):
-    cache_key = f"tabby:round:{round_id}"
+def get_round_by_id(round_seq, raw=False):
+    cache_key = f"tabby:round:{round_seq}"
     cached_round_data = cache.get(cache_key)
     if cached_round_data is not None:
         if raw:
             return cached_round_data
         return Round(**cached_round_data)
 
+    # If not found in direct cache, search all_rounds cache
+    all_round_cache_key = f"tabby:round"
+    all_rounds_data = cache.get(all_round_cache_key)
+    if all_rounds_data is not None:
+        round_data = next((round for round in all_rounds_data if round["id"] == round_seq), None)
+        if round_data:
+            if raw:
+                return round_data
+            return Round(**round_data)
 
-    response = requests.get(f"{ROOT_URI}/rounds/{round_id}")
+    response = requests.get(f"{ROOT_URI}/rounds/{round_seq}")
     round_data = json.loads(response.text)
     cache.set(cache_key, round_data, timeout=ROUND_CACHE_TIMEOUT_SECONDS)
     if raw:
@@ -201,7 +316,7 @@ def get_round_by_id(round_id, raw=False):
     return Round(**round_data)
 
 
-def get_round_draw(round_id, raw=False):
+def get_round_draw(round_seq, raw=False):
     """
     {
         "id": 0,
@@ -240,14 +355,17 @@ def get_round_draw(round_id, raw=False):
         "sides_confirmed": true
     }
     """
-    cache_key = f"tabby:round_draw:{round_id}"
+    cache_key = f"tabby:round_draw:{round_seq}"
     cached_draw_data = cache.get(cache_key)
     if cached_draw_data is not None:
         if raw:
             return cached_draw_data
         return [Draw(**pairing_data) for pairing_data in cached_draw_data]
 
-    response = requests.get(f"{ROOT_URI}/rounds/{round_id}/pairings")
+    response = requests.get(f"{ROOT_URI}/rounds/{round_seq}/pairings", headers={
+        "Accept": "application/json",
+        "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
+    })
     draw_data = json.loads(response.text)
     if not isinstance(draw_data, list):
         raise ValueError("Draw not yet released")
@@ -274,7 +392,7 @@ def get_all_teams(raw=False):
         "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
         })
     teams_data = json.loads(response.text)
-    cache.set(cache_key, teams_data, timeout=TEAM_CACHE_TIMEOUT_SECONDS)
+    cache.set(cache_key, teams_data, timeout=ANY_ALL_CACHE_TIMEOUT_SECONDS)
     if raw:
         return teams_data
     return [Team(**team_data) for team_data in teams_data]
@@ -292,6 +410,17 @@ def get_team_by_id(team_id, raw=False):
             return cached_team_data
 
         return Team(**cached_team_data)
+
+    # Now try to see if it is in all_teams_cache
+    all_team_cache_key = f"tabby:teams"
+    all_teams_data = cache.get(all_team_cache_key)
+    if all_teams_data is not None:
+        team_data = next((team for team in all_teams_data if team["id"] == team_id), None)
+        if team_data:
+            if raw:
+                return team_data
+            return Team(**team_data)
+
 
     response = requests.get(
         f"{ROOT_URI}/teams/{team_id}",
@@ -400,6 +529,24 @@ def get_adjudicator(adj_uri, raw=False):
     return Adjudicator(**adj_data)
 
 
+def get_speaker(speaker_uri, raw=False):
+    """
+    
+    """
+    response = requests.get(
+        speaker_uri,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}"
+        }
+    )
+    response.raise_for_status()
+    speaker_data = response.json()
+    if raw:
+        return speaker_data
+    return Speaker(**speaker_data)
+
+
 def get_institution(institution_uri, raw=False):
     """
     [{"id":2,"url":"https://mactabby26.onrender.com/api/v1/institutions/2","region":null,"venue_constraints":[],"teams":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/3","https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/4"],"adjudicators":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/26","https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/31"],"answers":null,"coaches":null,"teams_requested":null,"teams_allocated":null,"adjudicators_requested":null,"adjudicators_allocated":null,"name":"University of Archenland","code":"Archenland"},{"id":3,"url":"https://mactabby26.onrender.com/api/v1/institutions/3","region":null,"venue_constraints":[],"teams":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/5","https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/6"],"adjudicators":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/27","https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/32"],"answers":null,"coaches":null,"teams_requested":null,"teams_allocated":null,"adjudicators_requested":null,"adjudicators_allocated":null,"name":"University of Calormen","code":"Calormen"},{"id":5,"url":"https://mactabby26.onrender.com/api/v1/institutions/5","region":null,"venue_constraints":[],"teams":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/8"],"adjudicators":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/29","https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/34"],"answers":null,"coaches":null,"teams_requested":null,"teams_allocated":null,"adjudicators_requested":null,"adjudicators_allocated":null,"name":"University of Galma","code":"Galma"},{"id":1,"url":"https://mactabby26.onrender.com/api/v1/institutions/1","region":null,"venue_constraints":[],"teams":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/1","https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/2"],"adjudicators":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/25","https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/30"],"answers":null,"coaches":null,"teams_requested":null,"teams_allocated":null,"adjudicators_requested":null,"adjudicators_allocated":null,"name":"University of Narnia","code":"Narnia"},{"id":4,"url":"https://mactabby26.onrender.com/api/v1/institutions/4","region":null,"venue_constraints":[],"teams":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/7"],"adjudicators":["https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/28","https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/33"],"answers":null,"coaches":null,"teams_requested":null,"teams_allocated":null,"adjudicators_requested":null,"adjudicators_allocated":null,"name":"University of Underland","code":"Underland"}]
@@ -443,13 +590,14 @@ def get_all_institutions(raw=False):
     )
     response.raise_for_status()
     institutions_data = response.json()
-    cache.set(cache_key, institutions_data, timeout=INSTITUTION_CACHE_TIMEOUT_SECONDS)
+    cache.set(cache_key, institutions_data, timeout=ANY_ALL_CACHE_TIMEOUT_SECONDS)
     if raw:
         return institutions_data
     return [Institution(**institution_data) for institution_data in institutions_data]
 
 
 def create_team(short_name, long_name, reference, emoji, institution=None):
+    print(f"Creating a new team with short_name: {short_name}, long_name: {long_name}")
     response = requests.post(
         f"{ROOT_URI}/teams",
         headers={
@@ -462,6 +610,7 @@ def create_team(short_name, long_name, reference, emoji, institution=None):
             "reference": reference,
             "emoji": emoji,
             "institution": institution,
+            "use_institution_prefix": True,
         }
     )
     print(response.text)
@@ -491,3 +640,153 @@ def create_speaker(name, team_id, email, institution=None):
     return speaker_data
 
 
+
+def get_ballot(ballot_uri, raw=False):
+    """
+    [{"id":1,"result":{"sheets":[{"teams":[{"side":"aff","points":0,"win":false,"score":259.0,"team":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/6","speeches":[{"ghost":false,"score":75.0,"speaker":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/speakers/16"},{"ghost":false,"score":77.0,"speaker":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/speakers/17"},{"ghost":false,"score":71.0,"speaker":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/speakers/18"},{"ghost":false,"score":36.0,"speaker":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/speakers/16"}]},{"side":"neg","points":1,"win":true,"score":263.0,"team":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/teams/1","speeches":[{"ghost":false,"score":77.0,"speaker":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/speakers/2"},{"ghost":false,"score":75.0,"speaker":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/speakers/1"},{"ghost":false,"score":73.0,"speaker":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/speakers/3"},{"ghost":false,"score":38.0,"speaker":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/speakers/1"}]}],"adjudicator":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/adjudicators/26"}]},"motion":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/motions/1","url":"https://mactabby26.onrender.com/api/v1/tournaments/minimal8team/rounds/1/pairings/1/ballots/1","participant_submitter":null,"vetos":[],"timestamp":"2026-04-01T16:07:29.420154+13:00","version":1,"submitter_type":"T","confirmed":false,"private_url":false,"confirm_timestamp":null,"ip_address":"219.88.224.177","discarded":false,"single_adj":false,"forfeit":false,"submitter":1,"confirmer":null}]
+    """
+    response = requests.get(
+        ballot_uri,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
+        },
+    )
+    response.raise_for_status()
+    ballot_data = response.json()
+    if raw:
+        return ballot_data
+    if ballot_data["result"]:
+        ballot_data["result"] = Result(*ballot_data["result"])
+        if ballot_data["result"].adjudicator:
+            ballot_data["result"].adjudicator = get_adjudicator(ballot_data["result"].adjudicator, raw=False)
+        for sheet in ballot_data["result"].sheets:
+            for team in sheet["teams"]:
+                team["team"] = get_team_by_id(team["team"].split("/")[-1], raw=False)
+                for speech in team["speeches"]:
+                    speech["speaker"] = get_speaker(speech["speaker"], raw=False)
+                for i, speech in enumerate(team["speeches"]):
+                    team["speeches"][i] = Speech(**speech)
+            sheet["adjudicator"] = get_adjudicator(sheet["adjudicator"], raw=False)
+            sheet["teams"] = [ResultTeam(**team) for team in sheet["teams"]]
+            sheet["adjudicator"] = get_adjudicator(sheet["adjudicator"], raw=False)
+            sheet = Sheet(**sheet)
+    return Ballot(**ballot_data)
+
+
+
+
+
+def create_ballot(round_seq, pairing_id, result: Result, motion_id=None, submitter_type="T", confirmed=False, private_url=False, single_adj=False, forfeit=False, submitter=None):
+    """
+    {
+  "id": 0,
+  "result": {
+    "sheets": [
+      {
+        "teams": [
+          {
+            "side": 0,
+            "points": 0,
+            "win": true,
+            "score": 0.1,
+            "team": "http://example.com",
+            "speeches": [
+              {
+                "ghost": true,
+                "score": 0.1,
+                "rank": 0,
+                "speaker": "http://example.com",
+                "criteria": [
+                  {}
+                ]
+              }
+            ]
+          }
+        ],
+        "adjudicator": "http://example.com"
+      }
+    ]
+  },
+  "motion": "http://example.com",
+  "url": "http://example.com",
+  "participant_submitter": "http://example.com",
+  "vetos": [
+    {
+      "team": "http://example.com",
+      "motion": "http://example.com"
+    }
+  ],
+  "timestamp": "2019-08-24T14:15:22Z",
+  "version": 0,
+  "submitter_type": "T",
+  "confirmed": true,
+  "private_url": true,
+  "confirm_timestamp": "2019-08-24T14:15:22Z",
+  "ip_address": "string",
+  "discarded": true,
+  "single_adj": true,
+  "forfeit": true,
+  "submitter": 0,
+  "confirmer": 0
+}
+    """
+    response = requests.post(
+        f"{ROOT_URI}/rounds/{round_seq}/pairings/{pairing_id}/ballots",
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
+        },
+        json={
+            "result": {
+                "sheets": [
+                    {
+                        "teams": [
+                            {
+                                "side": result.sheets[0].teams[0].side,
+                                "points": result.sheets[0].teams[0].points,
+                                "win": result.sheets[0].teams[0].win,
+                                "score": result.sheets[0].teams[0].score,
+                                "team": result.sheets[0].teams[0].team,
+                                "speeches": [
+                                    {
+                                        "ghost": speech.ghost,
+                                        "score": speech.score,
+                                        "speaker": speech.speaker,
+                                        "criteria": []
+                                    }
+                                    for speech in result.sheets[0].teams[0].speeches
+                                ]
+                            },
+                            {
+                                "side": result.sheets[0].teams[1].side,
+                                "points": result.sheets[0].teams[1].points,
+                                "win": result.sheets[0].teams[1].win,
+                                "score": result.sheets[0].teams[1].score,
+                                "team": result.sheets[0].teams[1].team,
+                                "speeches": [
+                                    {
+                                        "ghost": speech.ghost,
+                                        "score": speech.score,
+                                        "speaker": speech.speaker,
+                                        "criteria": []
+                                    }
+                                    for speech in result.sheets[0].teams[1].speeches
+                                ]
+
+                            }
+                        ],
+                        "adjudicator": result.sheets[0].adjudicator
+                    }
+                ]
+            },
+            "participant_submitter": submitter.url if submitter else None,
+            "single_adj": single_adj,
+            "confirmed": confirmed
+
+        }
+    )
+    print(response.request.body)
+    response.raise_for_status()
+    ballot_data = response.json()
+    return Ballot(**ballot_data)

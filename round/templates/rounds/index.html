@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Rounds</title>
+    <link rel="stylesheet" href="{% static 'tailwind.css' %}">
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .snappy-academic {
+            transition: all 200ms cubic-bezier(0.05, 0.7, 0.1, 1.0);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
+</head>
+
+<body>
+    <div hx-post="/" hx-trigger="load" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' class="bg-background text-on-surface font-body min-h-screen flex flex-col items-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</body>
+
+</html>

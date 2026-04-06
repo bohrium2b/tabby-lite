@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 
 <html class="light" lang="en">
@@ -6,80 +7,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Team Registration</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "on-tertiary": "#ffffff",
-                        "tertiary-fixed-dim": "#3cddc7",
-                        "surface-tint": "#ffffff",
-                        "on-primary-container": "#000000",
-                        "background": "#ffffff",
-                        "secondary": "#000000",
-                        "on-surface": "#111111",
-                        "on-secondary": "#ffffff",
-                        "on-surface-variant": "#45464d",
-                        "surface-container-low": "#eff4ff",
-                        "secondary-fixed-dim": "#b9c7e0",
-                        "secondary-fixed": "#d5e3fd",
-                        "on-secondary-container": "#57657b",
-                        "on-error-container": "#93000a",
-                        "primary-fixed-dim": "#89ceff",
-                        "on-error": "#ffffff",
-                        "tertiary": "#000000",
-                        "primary-fixed": "#c9e6ff",
-                        "surface-variant": "#111111",
-                        "inverse-surface": "#213145",
-                        "on-tertiary-container": "#009485",
-                        "on-secondary-fixed": "#0d1c2f",
-                        "surface-dim": "#cbdbf5",
-                        "tertiary-container": "#00201c",
-                        "surface-container-lowest": "#ffffff",
-                        "on-background": "#0b1c30",
-                        "secondary-container": "#d5e3fd",
-                        "surface-bright": "#f8f9ff",
-                        "on-tertiary-fixed": "#00201c",
-                        "outline": "#76777d",
-                        "inverse-primary": "#89ceff",
-                        "surface-container": "#e5eeff",
-                        "surface-container-highest": "#d3e4fe",
-                        "on-primary-fixed-variant": "#004c6e",
-                        "surface-container-high": "#dce9ff",
-                        "on-tertiary-fixed-variant": "#005047",
-                        "error-container": "#ffdad6",
-                        "error": "#ba1a1a",
-                        "surface": "#333333",
-                        "primary": "#000000",
-                        "on-secondary-fixed-variant": "#3a485c",
-                        "tertiary-fixed": "#62fae3",
-                        "inverse-on-surface": "#eaf1ff",
-                        "primary-container": "#001e2f",
-                        "outline-variant": "#c6c6cd",
-                        "on-primary-fixed": "#001e2f",
-                        "on-primary": "#ffffff"
-                    },
-                    fontFamily: {
-                        "headline": ["Manrope"],
-                        "body": ["Inter"],
-                        "label": ["Inter"]
-                    },
-                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
-                },
-            },
-        }
-    </script>
+    <link rel="stylesheet" href="{% static 'tailwind.css' %}">
     <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -93,7 +21,7 @@
         h2,
         h3,
         .brand-font {
-            font-family: 'Manrope', sans-serif;
+            font-family: 'Inter', sans-serif;
         }
 
         .glass-panel {
@@ -119,7 +47,7 @@
                     csrfToken: '{{ csrf_token }}'
                 };
                 console.log('Form Data:', formData);
-                fetch('/rounds/registration/', {
+                fetch('/registration/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -200,7 +128,7 @@
                         <div
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase tracking-tighter">
+                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase">
                                     Primary Speaker</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
@@ -227,7 +155,7 @@
                         <div
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase tracking-tighter">
+                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase">
                                     Second Speaker</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
@@ -253,7 +181,7 @@
                         <div
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase tracking-tighter">
+                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase ">
                                     Third Speaker</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
@@ -308,18 +236,7 @@
                     </div>
                 </section>
             </form>
-            <!-- Footer Meta -->
-            <footer
-                class="mt-20 pt-8 border-t border-outline-variant/20 flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-outline">Powered by Tabbycat ©
-                    2026</p>
-                <div class="flex gap-6">
-                    <a class="text-[10px] font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors"
-                        href="#">Privacy Policy</a>
-                    <a class="text-[10px] font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors"
-                        href="#">Support Portal</a>
-                </div>
-            </footer>
+            <div style="height:10px"></div>
         </div>
     </main>
 </body>

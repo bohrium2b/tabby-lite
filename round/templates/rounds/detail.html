@@ -1,52 +1,140 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html class="light" lang="en">
 
 <head>
     <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>{{ round.name }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link href="{% static 'tailwind.css' %}" rel="stylesheet">
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .snappy-academic {
+            transition: all 200ms cubic-bezier(0.05, 0.7, 0.1, 1.0);
+        }
+
+        .scale-98-on-click:active {
+            transform: scale(0.98);
+        }
+    </style>
 </head>
 
-<body class="container">
-    <h1>{{ round.name }}</h1>
-    <p>Starts at: {{ round.starts_at }}</p>
+<body class="bg-background text-on-surface font-body min-h-screen flex flex-col items-center">
+    <main class="w-full flex flex-col min-h-screen">
+        <div class="px-6 py-12 md:px-12 md:py-16 w-full max-w-7xl mx-auto flex-1">
+            <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between mb-10">
+                <div>
+                    <a href="{% url 'round:rounds_list' %}" class="inline-flex items-center gap-1 text-on-secondary-container text-sm font-medium hover:text-primary snappy-academic mb-4 group">
+                        <span class="material-symbols-outlined text-lg group-hover:-translate-x-1 transition-transform">arrow_back</span>
+                        Back to Rounds
+                    </a>
+                    <h2 class="text-4xl md:text-5xl font-extrabold font-headline text-on-surface tracking-tighter">{{ round.name }}</h2>
+                    <p class="text-on-secondary-container mt-2 text-lg">Starts at {{ round.starts_at }}</p>
+                </div>
 
-    <a href="{% url 'rounds_list' %}" class="btn btn-secondary">Back to Rounds</a>
+                <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+                    <a href="/account/logout" class="block no-underline">
+                        <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-3 pr-4 shadow-sm min-w-[220px] hover:opacity-95">
+                            <div class="flex items-center gap-3">
+                                <div class="w-11 h-11 rounded-full bg-primary-container text-white flex items-center justify-center text-sm font-extrabold tracking-wide">
+                                    {{ user.username|first|upper }}
+                                </div>
+                                <div>
+                                    <p class="text-[11px] uppercase tracking-[0.14rem] text-on-secondary-container font-semibold">Signed In As</p>
+                                    <p class="text-sm font-bold text-on-surface">{{ user.username }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
 
-    <hr />
+                    {% if draw %}
+                    <a href="{% url 'round:draw_csv' round.id %}" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white snappy-academic scale-98-on-click bg-gradient-to-r from-[#001e2f] to-[#008cc7] shadow-lg shadow-[#008cc7]/10">
+                        <span class="material-symbols-outlined">download</span>
+                        Download Draw as CSV
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
 
-    {% if error %}
-        <div class="alert alert-danger" role="alert">
-            {{ error }}
+            {% if error %}
+            <div class="mb-6 rounded-xl border border-error/20 bg-error-container text-on-error-container px-4 py-3 text-sm" role="alert">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            {% if draw %}
+            <div class="bg-surface-container-lowest rounded-[2rem] overflow-hidden shadow-sm border border-outline-variant/20">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr class="bg-surface-container-high">
+                                <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem]">Location</th>
+                                <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem]">Aff (Proposition)</th>
+                                <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem]">Neg (Opposition)</th>
+                                <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem]">Adjudicator</th>
+                                <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem] text-right">Confidential Ballot</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/10">
+                            {% for pairing in draw %}
+                            <tr class="hover:bg-surface-container-low/40 transition-colors">
+                                <td class="px-8 py-6 font-semibold text-on-surface">
+                                    <div class="flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-secondary text-sm">meeting_room</span>
+                                        {{ pairing.location.display_name }}
+                                    </div>
+                                </td>
+                                <td class="px-8 py-6 text-sm font-bold text-on-surface">{{pairing.teams.0.team.emoji }} {{ pairing.teams.0.team.short_name }}</td>
+                                <td class="px-8 py-6 text-sm font-bold text-on-surface">{{pairing.teams.1.team.emoji }} {{ pairing.teams.1.team.short_name }}</td>
+                                <td class="px-8 py-6">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-surface-dim flex items-center justify-center text-xs font-bold text-on-surface-variant">
+                                            {{ pairing.adjudicators.chair.name|first|upper }}
+                                        </div>
+                                        <span class="text-sm font-medium text-on-surface">{{ pairing.adjudicators.chair.name }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-8 py-6 text-right">
+                                    {% if pairing.ballot_pairing.completed %}
+                                        <span class="inline-flex items-center gap-1 px-4 py-2 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg cursor-not-allowed opacity-90 pointer-events-none" aria-disabled="true">
+                                            <span class="material-symbols-outlined text-sm">check_circle</span>
+                                            Ballot completed!
+                                        </span>
+                                    {% else %}
+                                        <a href="{% url 'round:ballot' pairing.ballot_pairing.passphrase %}" class="inline-flex px-4 py-2 bg-surface-container-highest text-on-primary-fixed-variant text-xs font-bold rounded-lg hover:bg-primary-container hover:text-white snappy-academic scale-98-on-click">
+                                            View Ballot
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-8">
+                <h4 class="text-on-surface font-bold text-lg">No draw available yet</h4>
+                <p class="text-on-secondary-container text-sm mt-2">The round draw has not been published. Please check again shortly.</p>
+            </div>
+            {% endif %}
+
+            <div class="mt-12 flex items-start gap-4 p-8 rounded-2xl border-l-4 border-primary-container bg-surface-container-low">
+                <span class="material-symbols-outlined text-primary-container mt-1">info</span>
+                <div>
+                    <h4 class="text-on-surface font-bold text-sm">Round Protocol</h4>
+                    <p class="text-on-secondary-container text-xs mt-1 leading-relaxed max-w-2xl">
+                        All ballots are digitally protected. Adjudicators should submit their decision promptly after the debate concludes. Report technical issues to the tab team immediately.
+                    </p>
+                </div>
+            </div>
         </div>
-    {% endif %}
-
-    {% if draw %}
-    <div class="mb-3">
-        <a href="{% url 'draw_csv' round.id %}" class="btn btn-primary">Download Draw as CSV</a>
-    </div>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Location</th>
-                <th>Aff</th>
-                <th>Neg</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for pairing in draw %}
-            <tr>
-                <th>{{ pairing.location.display_name }}</th>
-
-                <td>{{ pairing.teams.0.team }}</td>
-                <td>{{ pairing.teams.1.team }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% endif %}
-
+    </main>
 </body>
 
 </html>
