@@ -1,0 +1,26 @@
+# Render blueprint for deploying tabby-lite
+# Replace placeholder values (DJANGO_SECRET_KEY, TABBY_AUTHENTICATION_TOKEN, TABBY_ROOT)
+# A managed Postgres database is created below and its connection string is wired
+# into the app's `DATABASE_URL` env var.
+
+services:
+  - type: web
+    name: tabby-lite
+    env: python
+    plan: starter
+    branch: main
+    region: oregon
+    buildCommand: pip install poetry && poetry install --no-dev && poetry run python manage.py migrate && poetry run python manage.py collectstatic
+    startCommand: poetry run gunicorn tabby_lite.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        value: "<REPLACE_WITH_STRONG_SECRET>"
+      - key: TABBY_ROOT
+        value: "<REPLACE_WITH_TABBY_ROOT>"
+      - key: TABBY_AUTHENTICATION_TOKEN
+        value: "<REPLACE_WITH_TABBY_AUTH_TOKEN>"
+      - key: DATABASE_URL
+        value: "<REPLACE_WITH_DATABASE_URL>"
+
