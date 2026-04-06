@@ -23,7 +23,7 @@
 <body>
     <div class="bg-background text-on-surface font-body min-h-screen flex flex-col items-center">
 
-        <div id="main" hx-post="/" hx-trigger="load" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+        <div id="main" hx-post="/" hx-trigger="load" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' class="w-full flex flex-col min-h-screen">
             <div class="flex-1 w-full flex items-center justify-center">
                 <div id="spinner" class="h-12 w-12 rounded-full border-4 border-gray-300 border-t-blue-600 animate-spin"
                     role="status" aria-label="Loading"
