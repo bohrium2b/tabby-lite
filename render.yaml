@@ -16,11 +16,14 @@ services:
     autoDeploy: true
     envVars:
       - key: DJANGO_SECRET_KEY
-        value: "<REPLACE_WITH_STRONG_SECRET>"
+        generateValue: true
       - key: TABBY_ROOT
         value: "<REPLACE_WITH_TABBY_ROOT>"
+        sync: false
       - key: TABBY_AUTHENTICATION_TOKEN
         value: "<REPLACE_WITH_TABBY_AUTH_TOKEN>"
+        sync: false
       - key: DATABASE_URL
         value: "<REPLACE_WITH_DATABASE_URL>"
+        sync: false
 
