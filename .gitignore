@@ -3,3 +3,4 @@ tabbylite_cache/*
 db.sqlite3
 node_modules/*
 **.pyc
+static/**

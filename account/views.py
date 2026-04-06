@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.contrib import messages
 
 # Create your views here.
 def index(request):
@@ -94,3 +95,37 @@ def profile_view(request):
         # Redirect to a success page or dashboard
         return redirect('account:profile')
     return render(request, 'account/profile.html')
+
+
+def onboarding(request):
+    """Create the initial superuser on first startup.
+
+    This view is shown only when there are no superusers in the database.
+    """
+    # If a superuser already exists, redirect away
+    if User.objects.filter(is_superuser=True).exists():
+        return redirect('account:index')
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        password1 = request.POST.get('password1')
+        password2 = request.POST.get('password2')
+
+        if not username:
+            messages.error(request, 'Username is required')
+        elif not password1 or password1 != password2:
+            messages.error(request, 'Passwords must match and not be empty')
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, 'A user with that username already exists')
+        else:
+            # Create superuser
+            user = User.objects.create_superuser(username=username, email=email or '', password=password1)
+            user.save()
+            # Log the user in
+            user = authenticate(request, username=username, password=password1)
+            if user is not None:
+                login(request, user)
+            return HttpResponseRedirect(reverse('admin:index'))
+
+    return render(request, 'account/onboarding.html')

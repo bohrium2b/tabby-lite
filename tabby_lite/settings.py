@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,12 +22,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-9!skqe4czi)h#-(9l^w6f9+qdez7+$vbsd6)s5unt0&0ssp!&f"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-9!skqe4czi)h#-(9l^w6f9+qdez7+$vbsd6)s5unt0&0ssp!&f")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 LOGIN_URL = '/account/login/'
 LOGIN_REDIRECT_URL = '/account/profile/'
@@ -46,13 +47,21 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "account.middleware.EnforceOnboardingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"
+    }
+}
 
 ROOT_URLCONF = "tabby_lite.urls"
 
@@ -84,6 +93,12 @@ DATABASES = {
     }
 }
 
+if 'DATABASE_URL' in os.environ:
+    DATABASES['default'] = dj_database_url.config(
+        conn_max_age=500,
+        conn_health_checks=True,
+    )
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -109,7 +124,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Pacific/Auckland"
 
 USE_I18N = True
 
@@ -123,23 +138,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "static"
 
 # Tabbycat API URI
-TABBY_ROOT = "https://mactabby26.onrender.com/api/v1/tournaments/minimal8team"
+TABBY_ROOT = os.environ.get("TABBY_ROOT", "https://mactabby26.onrender.com/api/v1/tournaments/Macleans2026")
 
 TABBY_AUTHENTICATION_TOKEN = os.getenv("TABBY_AUTHENTICATION_TOKEN")  # Get authentication token from Env
-
-DJANGO_VITE = {
-  "default": {
-    "dev_mode": True
-  },
-  "ballot": {
-    "dev_mode": True,
-    "dev_server_port": 5173,
-    "manifest_path": BASE_DIR / "ballot/static/ballot/manifest.json",
-    "dev_server_host": "miniature-invention-qj4wgg7vrvc6w9g-5173.app.github.dev/static/ballot/",
-    "dev_server_protocol": "https"
-  },
-}
-
 
 CACHES = {
     "default": {
@@ -147,3 +148,52 @@ CACHES = {
         "LOCATION": BASE_DIR / "cache",
     }
 }
+
+
+# Logging: write full debug traces to a rotating file in the project `logs/` directory.
+LOG_DIR = BASE_DIR / "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
+LOG_FILE = LOG_DIR / "tabby_lite.log"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s %(module)s.%(funcName)s:%(lineno)d - %(message)s"
+        },
+    },
+    "handlers": {
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_FILE),
+            "maxBytes": 10 * 1024 * 1024,  # 10 MB
+            "backupCount": 5,
+            "formatter": "verbose",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "level": "DEBUG",
+        },
+    },
+    "root": {
+        "handlers": ["file", "console"],
+        "level": "DEBUG",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["file", "console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["file", "console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
+

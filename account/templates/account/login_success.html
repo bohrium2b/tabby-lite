@@ -4,14 +4,14 @@
 {% block content %}
 <div style="text-align: center; margin-top: 50px; animation: fadeIn 2s;">
     <div style="position: relative; display: inline-block;">
-        <div class="checkmark-circle" hx-get="{% url 'account:profile' %}" hx-trigger="load delay:5s" hx-target="body" hx-swap="innerHTML" hx-push-url="true">
+        <div class="checkmark-circle" hx-get="{% url 'round:index' %}" hx-trigger="load delay:5s" hx-target="body" hx-swap="innerHTML" hx-push-url="true">
             <div class="accent-lines" aria-hidden="true"></div>
             <i class="bi bi-check" style="color: white; font-size: 4rem; display: flex; justify-content: center; align-items: center;"></i>
         </div>
     </div>
     <h1 style="color: #186E23; font-size: 3rem;">🎉 Welcome to <img src="{% static 'logo.svg' %}" alt="Logo" style="height: 3.6rem; vertical-align: top;"> {{ user.first_name }}! 🎉</h1>
     <p style="color: #555; font-size: 1.5rem;">You have been successfully logged in. We're excited to have you on board! 😊</p>
-    <p style="color: #888; font-size: 1.2rem;">Redirecting to your profile in 5 seconds...</p>
+    <p style="color: #888; font-size: 1.2rem;">Redirecting to the homepage in 5 seconds...</p>
 </div>
 
 <div id="confetti-container"></div>
