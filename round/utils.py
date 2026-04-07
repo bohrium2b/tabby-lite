@@ -584,7 +584,7 @@ def get_all_institutions(raw=False):
         return [Institution(**institution_data) for institution_data in cached_institutions_data]
     # This route is special because we want to get all institutions period, not just ones attached to a specific tournament.
     response = requests.get(
-        f"{HOST_URI}/institutions",
+        f"{HOST_URI}/api/v1/institutions",
         headers={
             "Accept": "application/json",
             "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
