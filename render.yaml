@@ -17,8 +17,11 @@ services:
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
-      - key: TABBY_ROOT
-        value: "<REPLACE_WITH_TABBY_ROOT>"
+      - key: TABBY_HOST
+        value: "<REPLACE_WITH_TABBY_HOST>"
+        sync: false
+      - key: TABBY_TOURNAMENT
+        value: "<REPLACE_WITH_TABBY_TOURNAMENT>"
         sync: false
       - key: TABBY_AUTHENTICATION_TOKEN
         value: "<REPLACE_WITH_TABBY_AUTH_TOKEN>"

@@ -138,8 +138,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "static"
 
 # Tabbycat API URI
-TABBY_ROOT = os.environ.get("TABBY_ROOT", "https://mactabby26.onrender.com/api/v1/tournaments/Macleans2026")
-
+TABBY_HOST = os.environ.get("TABBY_HOST", "https://mactabby26.onrender.com")
+TABBY_TOURNAMENT = os.environ.get("TABBY_TOURNAMENT")
+TABBY_ROOT = TABBY_HOST + "/api/v1/tournaments/" + TABBY_TOURNAMENT + ""
 TABBY_AUTHENTICATION_TOKEN = os.getenv("TABBY_AUTHENTICATION_TOKEN")  # Get authentication token from Env
 
 CACHES = {

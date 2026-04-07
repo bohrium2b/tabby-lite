@@ -18,6 +18,7 @@ def load_wordlist():
 
 
 ROOT_URI = settings.TABBY_ROOT
+HOST_URI = settings.TABBY_HOST
 TABBY_AUTHENTICATION_TOKEN = settings.TABBY_AUTHENTICATION_TOKEN
 TEAM_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_TEAM_CACHE_TIMEOUT_SECONDS", 3600)
 ROUND_DRAW_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_ROUND_DRAW_CACHE_TIMEOUT_SECONDS", 3600)
@@ -581,8 +582,9 @@ def get_all_institutions(raw=False):
         if raw:
             return cached_institutions_data
         return [Institution(**institution_data) for institution_data in cached_institutions_data]
+    # This route is special because we want to get all institutions period, not just ones attached to a specific tournament.
     response = requests.get(
-        f"{ROOT_URI}/institutions",
+        f"{HOST_URI}/institutions",
         headers={
             "Accept": "application/json",
             "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
