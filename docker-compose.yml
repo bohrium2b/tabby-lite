@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      # Django secret key (override in production)
+      DJANGO_SECRET_KEY: changeme
+      # If you want debug on in a dev compose file set to 'True'
+      DEBUG: 'False'
+      # Tabby integration vars (optional)
+      TABBY_HOST: <INSERT_TOURNAMENT_URL_HERE>
+      TABBY_TOURNAMENT: <INSERT_TOURNAMENT_NAME_HERE>
+      TABBY_AUTHENTICATION_TOKEN: ''
+      # Database connection used by dj-database-url
+      DATABASE_URL: <INSERT_DATABASE_URL_HERE>
+    ports:
+      - "8000:80"
+    volumes:
+      - static_volume:/home/app/web/static
+    # Run migrations and collectstatic before starting Passenger
+    command: /bin/bash -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && /sbin/my_init"
+    networks:
+      - webnet
+
+volumes:
+  db_data:
+  static_volume:
+
+networks:
+  webnet:
