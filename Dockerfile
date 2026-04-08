@@ -35,7 +35,7 @@ ENV passenger_python=/opt/venv/bin/python
 RUN mkdir -p /etc/nginx/sites-enabled
 # Remove Nginx default site
 RUN rm -f /etc/nginx/sites-available/default
-COPY deploy/nginx.passenger.conf /etc/nginx/sites-enabled/app.conf
+COPY deploy/nginx.passenger.conf /etc/nginx/sites-enabled/default
 # Enable nginx
 RUN rm -f /etc/service/nginx/down
 EXPOSE 80
