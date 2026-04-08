@@ -33,6 +33,8 @@ RUN /opt/venv/bin/python manage.py collectstatic --noinput || true
 ENV passenger_python=/opt/venv/bin/python
 # Ensure Nginx sites-enabled and copy our sample Passenger config
 RUN mkdir -p /etc/nginx/sites-enabled
+# Remove Nginx default site
+RUN rm -f /etc/nginx/sites-available/default
 COPY deploy/nginx.passenger.conf /etc/nginx/sites-enabled/app.conf
 # Enable nginx
 RUN rm -f /etc/service/nginx/down
