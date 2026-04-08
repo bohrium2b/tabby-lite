@@ -1,7 +1,7 @@
 [project]
 name = "tabby-lite"
 version = "0.1.0"
-description = ""
+description = "A lightweight wrapper on Tabbycat for debate tournaments"
 authors = [
     {name = "Dalton Ma",email = "85321730+bohrium2b@users.noreply.github.com"}
 ]
@@ -23,3 +23,15 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+
+
+[tool.poetry]
+name = "tabby-lite"
+version = "0.1.0"
+## Compatibility: some Poetry versions expect a `[tool.poetry]` table.
+## Duplicate minimal metadata from the PEP 621 `[project]` table so
+## `poetry install` inside the Docker image recognizes the package.
+description = ""
+authors = ["Dalton Ma <85321730+bohrium2b@users.noreply.github.com>"]
+readme = "README.md"
