@@ -20,6 +20,7 @@ def load_wordlist():
 ROOT_URI = settings.TABBY_ROOT
 HOST_URI = settings.TABBY_HOST
 TABBY_AUTHENTICATION_TOKEN = settings.TABBY_AUTHENTICATION_TOKEN
+TOURNAMENT_CACHE_TIMOUT_SECONDS = getattr(settings, "TABBY_TOURNAMENT_CACHE_TIMEOUT_SECONDS", 24 * 3600)
 TEAM_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_TEAM_CACHE_TIMEOUT_SECONDS", 3600)
 ROUND_DRAW_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_ROUND_DRAW_CACHE_TIMEOUT_SECONDS", 3600)
 VENUE_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_VENUE_CACHE_TIMEOUT_SECONDS", 3600*24*2)
@@ -27,6 +28,17 @@ ROUND_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_ROUND_CACHE_TIMEOUT_SECON
 INSTITUTION_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_INSTITUTION_CACHE_TIMEOUT_SECONDS", 3600)
 ANY_ALL_CACHE_TIMEOUT_SECONDS = getattr(settings, "TABBY_ANY_ALL_CACHE_TIMEOUT_SECONDS", 60*15)
 WORDLIST = load_wordlist()
+
+
+class Tournament:
+    def __init__(self, id, url, name, short_name, slug, active=False, _links=None, current_rounds=None, seq=None):
+        self.id=id
+        self.url=url
+        self.name=name
+        self.short_name=short_name
+        self.slug=slug
+        self.active=active
+
 
 class RoundLinks(TypedDict):
     pairing: str
@@ -233,6 +245,21 @@ def generate_passphrase():
     letters = ''.join(secrets.choice('abcdefghjkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ') for _ in range(3))
     numbers = ''.join(secrets.choice('123456789') for _ in range(2))
     return '-'.join(words) + '-' + letters + numbers
+
+
+def get_tournament(raw=False):
+    cache_key = "tabby:tournament"
+    cached_tournament_data = cache.get(cache_key)
+    if cached_tournament_data is not None:
+        if raw:
+            return cached_tournament_data
+        return Tournament(**cached_tournament_data)
+    response = requests.get(f"{ROOT_URI}")
+    tournament_data = json.loads(response.text)
+    cache.set(cache_key, tournament_data, timeout=TOURNAMENT_CACHE_TIMOUT_SECONDS)
+    if raw:
+        return tournament_data
+    return Tournament(**tournament_data)
 
 
 

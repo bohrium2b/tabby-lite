@@ -584,6 +584,9 @@
   .cursor-not-allowed {
     cursor: not-allowed;
   }
+  .cursor-pointer {
+    cursor: pointer;
+  }
   .resize {
     resize: both;
   }
@@ -837,9 +840,6 @@
   }
   .bg-error-container {
     background-color: var(--color-error-container);
-  }
-  .bg-gray-50 {
-    background-color: var(--color-gray-50);
   }
   .bg-green-100 {
     background-color: var(--color-green-100);
@@ -1153,9 +1153,6 @@
   .text-gray-600 {
     color: var(--color-gray-600);
   }
-  .text-gray-900 {
-    color: var(--color-gray-900);
-  }
   .text-green-500 {
     color: var(--color-green-500);
   }
@@ -1204,9 +1201,6 @@
   .text-secondary {
     color: var(--color-secondary);
   }
-  .text-secondary-fixed-dim {
-    color: var(--color-secondary-fixed-dim);
-  }
   .text-secondary\/70 {
     color: color-mix(in srgb, #515f74 70%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
@@ -1233,12 +1227,6 @@
   }
   .underline {
     text-decoration-line: underline;
-  }
-  .decoration-2 {
-    text-decoration-thickness: 2px;
-  }
-  .underline-offset-4 {
-    text-underline-offset: 4px;
   }
   .opacity-20 {
     opacity: 20%;

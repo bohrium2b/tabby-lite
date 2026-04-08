@@ -44,8 +44,16 @@
                     speaker2Email: document.querySelector('input[name="speaker2Email"]').value,
                     speaker3Name: document.querySelector('input[name="speaker3Name"]').value,
                     speaker3Email: document.querySelector('input[name="speaker3Email"]').value,
+                    speaker4Name: document.querySelector('input[name="speaker4Name"]').value,
+                    speaker4Email: document.querySelector('input[name="speaker4Email"]').value,
                     csrfToken: '{{ csrf_token }}'
                 };
+                // Validate
+                if (!formData.teamName || !formData.institution || !formData.speaker1Name || !formData.speaker1Email) {
+                    alert('Please fill in all required fields.');
+                    return;
+                }
+
                 console.log('Form Data:', formData);
                 fetch('/registration/', {
                     method: 'POST',
@@ -59,7 +67,7 @@
                     .then(data => {
                         console.log('Success:', data);
                         // Handle success (e.g., show a success message, redirect, etc.)
-                        document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center"><h1 class="text-3xl font-bold text-green-600">Registration Successful!</h1></div>';
+                        document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center"><h1 class="text-3xl font-bold text-green-600">' + data.message + '</h1></div>';
                     })
                     .catch((error) => {
                         console.error('Error:', error);
@@ -128,8 +136,8 @@
                         <div
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase">
-                                    Primary Speaker</h3>
+                                <h3 class="font-manrope font-bold text-on-primary-fixed-variant uppercase">
+                                    Speaker One</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
                             </div>
@@ -155,8 +163,8 @@
                         <div
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase">
-                                    Second Speaker</h3>
+                                <h3 class="font-manrope font-bold text-on-primary-fixed-variant uppercase">
+                                    Speaker Two</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
                             </div>
@@ -181,8 +189,8 @@
                         <div
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="font-manrope font-bold text-secondary-fixed-dim uppercase ">
-                                    Third Speaker</h3>
+                                <h3 class="font-manrope font-bold text-on-primary-fixed-variant uppercase ">
+                                    Speaker Three</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
                             </div>
@@ -202,6 +210,30 @@
                                         type="email" name="speaker3Email" />
                                 </div>
                             </div>
+                        </div><div
+                            class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="font-manrope font-bold text-on-primary-fixed-variant uppercase ">
+                                    Speaker Four</h3>
+                                <span
+                                    class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold uppercase text-on-secondary-container">Full
+                                        Name</label>
+                                    <input
+                                        class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-tertiary-fixed"
+                                        type="text" name="speaker4Name" />
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-[10px] font-bold uppercase text-on-secondary-container">Email
+                                        Address</label>
+                                    <input
+                                        class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-tertiary-fixed"
+                                        type="email" name="speaker4Email" />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -213,7 +245,7 @@
                                 class="mt-1 w-5 h-5 rounded border-outline text-on-primary-container focus:ring-tertiary-fixed"
                                 id="terms" type="checkbox" required />
                             <label class="text-sm text-secondary leading-relaxed" for="terms">
-                                I confirm that the information provided is accurate. 
+                                I confirm that the information provided is accurate.
                             </label>
                         </div>
                     </div>
@@ -225,7 +257,7 @@
                                 Submission</span>
                         </div>
                         <button
-                            class="w-full sm:w-auto px-12 py-5 bg-gradient-to-r from-primary-container to-on-primary-container text-white rounded-xl font-bold text-lg tracking-tight shadow-2xl shadow-on-primary-container/30 hover:scale-[1.02] active:scale-95 transition-all"
+                            class="w-full sm:w-auto px-12 py-5 bg-gradient-to-r from-primary-container to-on-primary-container text-white rounded-xl font-bold text-lg tracking-tight shadow-2xl shadow-on-primary-container/30 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
                             type="submit"
                             id="submitRegistration"
                             name="submitRegistration">

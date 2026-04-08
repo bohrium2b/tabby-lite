@@ -1,9 +1,10 @@
 from django.shortcuts import render, HttpResponse
+from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from regex import match
 from round.emojis import EMOJI_LIST
 from round.models import BallotPairing
-from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, create_ballot, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_venue, create_team, create_speaker, get_all_teams, generate_passphrase
+from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, create_ballot, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_tournament, get_venue, create_team, create_speaker, get_all_teams, generate_passphrase
 from django.contrib.auth.decorators import login_required
 from requests.exceptions import HTTPError
 import json
@@ -14,11 +15,12 @@ def rounds_list(request):
     if request.method == "POST":
         rounds = get_all_rounds()  # Replace with actual function to fetch rounds
         teams = get_all_teams()
+        tournament = get_tournament()
         for team in teams:
             # Replace institution URL with institution name
             institution_name = get_institution(team.institution).name
             team.institution = institution_name
-        return render(request, 'rounds/list.html', {'rounds': rounds, 'teams': teams})
+        return render(request, 'rounds/list.html', {'rounds': rounds, 'teams': teams, 'tournament': tournament})
     return render(request, 'rounds/index.html')
 
 
@@ -26,6 +28,9 @@ def rounds_list(request):
 def rounds_detail(request, round_seq):
     # Replace with actual function to fetch a single round
     round = get_round_by_id(round_seq)
+    # If post request, refresh cache
+    if request.method == "POST":
+        cache.delete(f'tabby:round_draw:{round_seq}')
     
     try:
         draw = get_round_draw(round_seq)
@@ -33,26 +38,32 @@ def rounds_detail(request, round_seq):
         # Handle the error, e.g., by displaying an error message
         return render(request, 'rounds/detail.html', {'round': round, 'error': str(e)})
 
+    
+
+
 
     for pairing in draw:
         # Get location
-        location = get_venue(pairing.venue)
-        pairing.location = location
+        if pairing.venue:
+            location = get_venue(pairing.venue)
+            pairing.location = location
         for team in pairing.teams:
             team_name = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', team["team"]).group(1))
             team["team"] = team_name
-        pairing.adjudicators = {"chair": get_adjudicator(pairing.adjudicators["chair"]), "panellists": [get_adjudicator(panellist) for panellist in pairing.adjudicators["panellists"]], "trainees": [get_adjudicator(trainee) for trainee in pairing.adjudicators["trainees"]]}
-        # Generate a ballot pairing
-        # If one doesn't already exist
-        if not BallotPairing.objects.filter(round_seq=round_seq, pairing_seq=pairing.id).exists():
-            ballot_pairing = BallotPairing.objects.create(
-                round_seq=round_seq,
-                pairing_seq=pairing.id,
-                passphrase=generate_passphrase()
-            )
-        else:
-            ballot_pairing = BallotPairing.objects.get(round_seq=round_seq, pairing_seq=pairing.id)
-        pairing.ballot_pairing = ballot_pairing
+        if pairing.adjudicators["chair"]:
+            pairing.adjudicators = {"chair": get_adjudicator(pairing.adjudicators["chair"]), "panellists": [get_adjudicator(panellist) for panellist in pairing.adjudicators["panellists"]], "trainees": [get_adjudicator(trainee) for trainee in pairing.adjudicators["trainees"]]}
+            # Generate a ballot pairing
+            # If one doesn't already exist
+            if not BallotPairing.objects.filter(round_seq=round_seq, pairing_seq=pairing.id).exists():
+                ballot_pairing = BallotPairing.objects.create(
+                    round_seq=round_seq,
+                    pairing_seq=pairing.id,
+                    passphrase=generate_passphrase()
+                )
+            else:
+                ballot_pairing = BallotPairing.objects.get(round_seq=round_seq, pairing_seq=pairing.id)
+                print(ballot_pairing.passphrase)
+            pairing.ballot_pairing = ballot_pairing
     return render(request, 'rounds/detail.html', {'round': round, 'draw': draw})
 
 
@@ -67,15 +78,15 @@ def draw_csv(request, round_seq):
     # Generate CSV content from the draw data
     csv_content = "email, team1, sideteam1, team2, sideteam2, venue\n"
     for pairing in draw:
-        team1 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[0]["team"]).group(1)).short_name
-        emailteam1 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[0]["team"]).group(1)).speakers[0]["email"]
+        team1 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[0]["team"]).group(1))
+        emailteam1 = team1.speakers[0]["email"]
         sideteam1 = pairing.teams[0]["side"]
-        team2 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[1]["team"]).group(1)).short_name
-        emailteam2 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[1]["team"]).group(1)).speakers[0]["email"]
+        team2 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[1]["team"]).group(1))
+        emailteam2 = team2.speakers[0]["email"]
         sideteam2 = pairing.teams[1]["side"]
         venue = get_venue(pairing.venue).name
-        csv_content += f"{emailteam1}, {team1}, {sideteam1}, {team2}, {sideteam2}, {venue}\n"
-        csv_content += f"{emailteam2}, {team2}, {sideteam2}, {team1}, {sideteam1}, {venue}\n"
+        csv_content += f"{emailteam1}, {team1.emoji} {team1.short_name}, {sideteam1}, {team2.emoji} {team2.short_name}, {sideteam2}, {venue}\n"
+        csv_content += f"{emailteam2}, {team2.emoji} {team2.short_name}, {sideteam2}, {team1.emoji} {team1.short_name}, {sideteam1}, {venue}\n"
 
     response = HttpResponse(csv_content, content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="round_{round_seq}_draw.csv"'
@@ -95,7 +106,9 @@ def registration(request):
         print(body.get('speaker2Email'))
         print(body.get('speaker3Name'))
         print(body.get('speaker3Email'))
-        # Create three speakers
+        print(body.get('speaker4Name'))
+        print(body.get('speaker4Email'))
+        # Create four speakers
         speaker1 = {
             'name': body.get('speaker1Name'),
             'email': body.get('speaker1Email'),
@@ -111,15 +124,24 @@ def registration(request):
             'email': body.get('speaker3Email'),
             'institution': body.get('institution')
         }
-        print(speaker1, speaker2, speaker3)
+        speaker4 = {
+            'name': body.get('speaker4Name'),
+            'email': body.get('speaker4Email'),
+            'institution': body.get('institution')
+        }
+
+        print(speaker1, speaker2, speaker3, speaker4)
         print(f"Institution: {institution.name}")
         team = create_team(short_name=f"{institution.code} {body.get('teamName')}", long_name=f"{institution.name} {body.get('teamName')}", reference=body.get('teamName'), emoji=random.choice(EMOJI_LIST)[0], institution=institution.url)
         team_id = team.id
         create_speaker(speaker1['name'], team_id=team_id, email=speaker1['email'], institution=speaker1['institution'])
         create_speaker(speaker2['name'], team_id=team_id, email=speaker2['email'], institution=speaker2['institution'])
         create_speaker(speaker3['name'], team_id=team_id, email=speaker3['email'], institution=speaker3['institution'])
-
-        return HttpResponse(json.dumps({'status': 'success', 'message': 'Registration successful!'}), content_type='application/json')
+        if speaker4['name'] and speaker4['email']:
+            create_speaker(speaker4['name'], team_id=team_id, email=speaker4['email'], institution=speaker4['institution'])
+        # Invalidate all_teams cache
+        cache.delete('tabby:teams')
+        return HttpResponse(json.dumps({'status': 'success', 'message': f'Registration successful! Welcome {team.emoji} {team.short_name}!'}), content_type='application/json')
     
     institutions = get_all_institutions()
     return render(request, 'rounds/registration.html', {'institutions': institutions})
