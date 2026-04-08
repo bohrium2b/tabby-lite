@@ -27,7 +27,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VIRTUALENVS_CREATE=false
 RUN pip install --upgrade pip setuptools wheel poetry && \
-	poetry install --no-dev --no-interaction --no-ansi
+	poetry install --no-interaction --no-ansi
 
 # Tell Passenger which Python to use
 ENV passenger_python=/opt/venv/bin/python
