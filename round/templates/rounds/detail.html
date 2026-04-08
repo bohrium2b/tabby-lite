@@ -53,7 +53,7 @@
                     </a>
 
                     {% if draw %}
-                    <a href="{% url 'round:draw_csv' round.id %}" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white snappy-academic scale-98-on-click bg-gradient-to-r from-[#001e2f] to-[#008cc7] shadow-lg shadow-[#008cc7]/10">
+                    <a href="{% url 'round:draw_csv' round.seq %}" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white snappy-academic scale-98-on-click bg-gradient-to-r from-[#001e2f] to-[#008cc7] shadow-lg shadow-[#008cc7]/10">
                         <span class="material-symbols-outlined">download</span>
                         Download Draw as CSV
                     </a>

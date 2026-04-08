@@ -34,7 +34,8 @@ ENV passenger_python=/opt/venv/bin/python
 # Ensure Nginx sites-enabled and copy our sample Passenger config
 RUN mkdir -p /etc/nginx/sites-enabled
 COPY deploy/nginx.passenger.conf /etc/nginx/sites-enabled/app.conf
-
+# Enable nginx
+RUN rm -f /etc/service/nginx/down
 EXPOSE 80
 
 # Start container with Phusion's init which will run Nginx + Passenger
