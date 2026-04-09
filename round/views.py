@@ -90,7 +90,10 @@ def draw_csv(request, round_seq):
             team2 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[1]["team"]).group(1))
             emailteam2 = team2.speakers[0]["email"]
             sideteam2 = pairing.teams[1]["side"]
-        venue = get_venue(pairing.venue).name
+        if pairing.venue:
+            venue = get_venue(pairing.venue).name
+        else:
+            venue = "BYE"
         csv_content += f"{emailteam1}, {team1.emoji} {team1.short_name}, {sideteam1}, {team2.emoji} {team2.short_name}, {sideteam2}, {venue}\n"
         
         if pairing.teams[0]['side'] == 'bye':
