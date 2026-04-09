@@ -81,12 +81,22 @@ def draw_csv(request, round_seq):
         team1 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[0]["team"]).group(1))
         emailteam1 = team1.speakers[0]["email"]
         sideteam1 = pairing.teams[0]["side"]
-        team2 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[1]["team"]).group(1))
-        emailteam2 = team2.speakers[0]["email"]
-        sideteam2 = pairing.teams[1]["side"]
+        # If it is a BYE debate, replace team2 with BYE
+        if pairing.teams[0]['side'] == 'bye':
+            team2 = {"short_name": "BYE", "emoji": ""}
+            emailteam2 = ""
+            sideteam2 = ""
+        else: 
+            team2 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[1]["team"]).group(1))
+            emailteam2 = team2.speakers[0]["email"]
+            sideteam2 = pairing.teams[1]["side"]
         venue = get_venue(pairing.venue).name
         csv_content += f"{emailteam1}, {team1.emoji} {team1.short_name}, {sideteam1}, {team2.emoji} {team2.short_name}, {sideteam2}, {venue}\n"
-        csv_content += f"{emailteam2}, {team2.emoji} {team2.short_name}, {sideteam2}, {team1.emoji} {team1.short_name}, {sideteam1}, {venue}\n"
+        
+        if pairing.teams[0]['side'] == 'bye':
+            pass 
+        else:
+            csv_content += f"{emailteam2}, {team2.emoji} {team2.short_name}, {sideteam2}, {team1.emoji} {team1.short_name}, {sideteam1}, {venue}\n"
 
     response = HttpResponse(csv_content, content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="round_{round_seq}_draw.csv"'
