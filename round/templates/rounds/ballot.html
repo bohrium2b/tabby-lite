@@ -321,12 +321,17 @@
                     }
 
                     // Ensure winning side matches the team that has the most points
-                    const winningTeam = document.querySelector(`input[name="team${winningSide}"]`);
-                    if (!winningTeam) {
-                        showError('Please select a valid winning team.', document.getElementById('winning_side'));
+                    const winningTeam = max(teamCards.map(card => {
+                        const totalInput = card.querySelector(`input[name="speaker_${card.dataset.teamLabel}_total_points"]`);
+                        return totalInput ? parseFloat(totalInput.value) || 0 : 0;
+                    }));
+                    if (winningSide === 'aff' && winningTeam !== max(teamCards.map(card => {
+                        const totalInput = card.querySelector(`input[name="speaker_${card.dataset.teamLabel}_total_points"]`);
+                        return totalInput ? parseFloat(totalInput.value) || 0 : 0;
+                    }))) {
+                        showError('The winning side does not match the team with the most points.', document.getElementById('winning_side'));
                         return;
                     }
-
 
                     // Passed validation — show loading and disable button while request is inflight
                     if (loadingEl) loadingEl.classList.remove('hidden');
@@ -353,11 +358,6 @@
                             win: document.getElementById('winning_side').value === card.dataset.teamSide,
                             points: totalInput ? (parseFloat(totalInput.value) || 0) : 0
                         };
-                    };
-                    // Validate data - all fields are filled out, totals match, no iron person, etc.
-                    const validateData = (card) => {
-                        // Validate data - all fields are filled out fully, totals match, no iron person, no low-points debate where winner has fewer points
-                        
                     };
 
                     const payload = {};
