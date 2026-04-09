@@ -36,6 +36,8 @@ RUN mkdir -p /etc/nginx/sites-enabled
 # Remove Nginx default site
 RUN rm -f /etc/nginx/sites-available/default
 COPY deploy/nginx.passenger.conf /etc/nginx/sites-enabled/default
+# Enable all write on the logs directory
+RUN chown -R app:app /home/app/web/logs
 # Enable nginx
 RUN rm -f /etc/service/nginx/down
 EXPOSE 80
