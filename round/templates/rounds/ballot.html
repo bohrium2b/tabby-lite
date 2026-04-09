@@ -321,7 +321,7 @@
                     }
 
                     // Ensure winning side matches the team that has the most points
-                    const winningTeam = max(teamCards.map(card => {
+                    const winningTeam = Math.max(teamCards.map(card => {
                         const totalInput = card.querySelector(`input[name="speaker_${card.dataset.teamLabel}_total_points"]`);
                         return totalInput ? parseFloat(totalInput.value) || 0 : 0;
                     }));
