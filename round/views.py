@@ -1,13 +1,16 @@
+import io
+
 from django.shortcuts import render, HttpResponse
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from regex import match
 from round.emojis import EMOJI_LIST
 from round.models import BallotPairing
-from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, create_ballot, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_tournament, get_venue, create_team, create_speaker, get_all_teams, generate_passphrase
+from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, Team, create_ballot, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_tournament, get_venue, create_team, create_speaker, get_all_teams, generate_passphrase
 from django.contrib.auth.decorators import login_required
 from requests.exceptions import HTTPError
 import json
+import csv
 import random
 
 # Create your views here.
@@ -37,10 +40,6 @@ def rounds_detail(request, round_seq):
     except ValueError as e:
         # Handle the error, e.g., by displaying an error message
         return render(request, 'rounds/detail.html', {'round': round, 'error': str(e)})
-
-    
-
-
 
     for pairing in draw:
         # Get location
@@ -83,7 +82,7 @@ def draw_csv(request, round_seq):
         sideteam1 = pairing.teams[0]["side"]
         # If it is a BYE debate, replace team2 with BYE
         if pairing.teams[0]['side'] == 'bye':
-            team2 = {"short_name": "BYE", "emoji": ""}
+            team2 = Team(emoji="", id=0, url="", institution="", use_institution_prefix=False, break_categories=[], institution_conflicts=[], venue_constraints=[], answers=[], reference="BYE", short_reference="BYE", code_name="BYE", short_name="BYE", long_name="BYE", seed=0, registration_status="confirmed", speakers=[], detail=None)
             emailteam2 = ""
             sideteam2 = ""
         else: 
@@ -106,7 +105,67 @@ def draw_csv(request, round_seq):
     return response
 
 
+@login_required
+def adj_draw_csv(request, round_seq):
+    try:
+        draw = get_round_draw(round_seq)
+    except ValueError as e:
+        # Handle the error, e.g., by displaying an error message
+        return render(request, 'rounds/detail.html', {'error': str(e)})
+    pairings = []
+    # For each pairing in the draw, create a dict of {"email": "...", "name": "...", "team1": "EMOJI TEAM SHORT_NAME", "sideteam1": "...", "team2": "EMOJI TEAM SHORT_NAME", "sideteam2": "...", "venue": "...", "passphrase": "CONFIDENTIAL PASSPHRASE"}
+    for pairing in draw:
+        # Get ballot_pairing
+        ballot_pairing = BallotPairing.objects.get(round_seq=round_seq, pairing_seq=pairing.id)
+        # Get adj
+        adjudicators = pairing.adjudicators or {}
+        chair = adjudicators.get("chair")
+        adjudicator = get_adjudicator(chair) if chair else None
+        # Get team1
+        team1 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[0]["team"] if pairing.teams[0]["team"] else "").group(1))
+        # If team1 side is BYE:
+        if pairing.teams[0]['side'] == 'bye':
+            # Get team2
+            team2 = Team(emoji="", id=0, url="", institution="", use_institution_prefix=False, break_categories=[], institution_conflicts=[], venue_constraints=[], answers=[], reference="BYE", short_reference="BYE", code_name="BYE", short_name="BYE", long_name="BYE", seed=0, registration_status="confirmed", speakers=[], detail=None)
+            sideteam2 = "BYE"
+        else:
+            team2 = get_team_by_id(match(r'.+\/teams\/(\d+)\/{0,1}', pairing.teams[1]["team"] if pairing.teams[1]["team"] else "").group(1))
+            sideteam2 = pairing.teams[1]['side']
+        # Get venue
+        if pairing.venue:
+            venue = get_venue(pairing.venue).name
+        else:
+            venue = "BYE"
+
+        # Create a dict for the pairing
+        pairing_dict = {
+            "email": adjudicator.email if adjudicator else "",
+            "name": adjudicator.name if adjudicator else "",
+            "team1": f"{team1.emoji} {team1.short_name}" if team1 else "",
+            "sideteam1": pairing.teams[0]['side'] if pairing.teams[0]['side'] else "",
+            "team2": f"{team2.emoji} {team2.short_name}" if team2 else "",
+            "sideteam2": f"{sideteam2}",
+            "venue": venue,
+            "passphrase": ballot_pairing.passphrase if sideteam2 is not "BYE" else ""
+        }
+        pairings.append(pairing_dict)
+    # Now use csv to put pairings to csv
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=pairing_dict.keys())
+    writer.writeheader()
+    writer.writerows(pairings)
+    # Get output as str then return it as csv mime type
+    csv_content = output.getvalue()
+
+    response = HttpResponse(csv_content, content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="round_{round_seq}_adj_draw.csv"'
+    return response
+
+
 def registration(request):
+    """
+    Display a registration page.
+    """
     if request.method == 'POST':
         # Handle form submission here
         body = json.loads(request.body.decode('utf-8'))
@@ -145,7 +204,15 @@ def registration(request):
 
         print(speaker1, speaker2, speaker3, speaker4)
         print(f"Institution: {institution.name}")
-        team = create_team(short_name=f"{institution.code} {body.get('teamName')}", long_name=f"{institution.name} {body.get('teamName')}", reference=body.get('teamName'), emoji=random.choice(EMOJI_LIST)[0], institution=institution.url)
+        try:
+            team = create_team(short_name=f"{institution.code} {body.get('teamName')}", long_name=f"{institution.name} {body.get('teamName')}", reference=body.get('teamName'), emoji=random.choice(EMOJI_LIST)[0], institution=institution.url)
+        except HTTPError as e:
+            # If the error is related to emoji not being unique or stuff like that, retry with a different emoji
+            if "emoji" in str(e).lower():
+                team = create_team(short_name=f"{institution.code} {body.get('teamName')}", long_name=f"{institution.name} {body.get('teamName')}", reference=body.get('teamName'), emoji=random.choice(EMOJI_LIST)[0], institution=institution.url)
+
+            print(f"Error creating team: {e}")
+            return HttpResponse(json.dumps({'status': 'error', 'message': 'Failed to create team'}), content_type='application/json')
         team_id = team.id
         create_speaker(speaker1['name'], team_id=team_id, email=speaker1['email'], institution=speaker1['institution'])
         create_speaker(speaker2['name'], team_id=team_id, email=speaker2['email'], institution=speaker2['institution'])
@@ -157,7 +224,8 @@ def registration(request):
         return HttpResponse(json.dumps({'status': 'success', 'message': f'Registration successful! Welcome {team.emoji} {team.short_name}!'}), content_type='application/json')
     
     institutions = get_all_institutions()
-    return render(request, 'rounds/registration.html', {'institutions': institutions})
+    team_name = generate_passphrase("W W") # Get a random word
+    return render(request, 'rounds/registration.html', {'institutions': institutions, "team_name": team_name, "can_edit_team_name": False})
 
 
 def ballot(request, passphrase):

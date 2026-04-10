@@ -237,14 +237,41 @@ class Ballot:
         return f"Ballot(id={self.id}, result={self.result}, motion={self.motion})"
 
 
-def generate_passphrase():
+def generate_passphrase(format="w-w-w-LLLnn"):
     """
-    Create a unique 3-word + 4 random upper/lowercase letters passphrase.
+    Generate a passphrase based on the format specified.
+    Format letters:
+    - "w": word
+    - "W": word (first letter capitalized)
+    - "l": letter (lowercase)
+    - "L": letter (uppercase or lowercase)
+    - "n": number
+    - "a": adjective
+    - "A": adjective (capitalized)
+    - "n": noun
+    - "N": noun (capitalized)
+
+    Format options:
+    - "w-w-w-LLLnn": 3 words + 3 letters + 2 numbers
+    - "W W"
     """
-    words = [secrets.choice(WORDLIST) for _ in range(3)]
-    letters = ''.join(secrets.choice('abcdefghjkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ') for _ in range(3))
-    numbers = ''.join(secrets.choice('123456789') for _ in range(2))
-    return '-'.join(words) + '-' + letters + numbers
+    # Iterate through the passphrase. If it has a special character (w, W, l, L, n)
+    passphrase = ""
+    for char in format:
+        if char == "w":
+            passphrase += secrets.choice(WORDLIST)
+        elif char == "W":
+            passphrase += secrets.choice(WORDLIST).capitalize()
+        elif char == "l":
+            passphrase += secrets.choice('abcdefghjkmnopqrstuvwxyz') 
+        elif char == "L":
+            passphrase += secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ')
+        elif char == "n":
+            passphrase += secrets.choice('123456789')
+        else:
+            passphrase += char
+    return passphrase
+
 
 
 def get_tournament(raw=False):
