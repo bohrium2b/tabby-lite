@@ -130,11 +130,24 @@
                                         <div class="w-8 h-8 rounded-full bg-surface-dim flex items-center justify-center text-xs font-bold text-on-surface-variant">
                                             {{ pairing.adjudicators.chair.name|first|upper }}
                                         </div>
-                                        <span class="text-sm font-medium text-on-surface">{{ pairing.adjudicators.chair.name }}</span>
+                                        <span class="text-sm font-medium text-on-surface">{{ pairing.adjudicators.chair.name }} &copy;</span>
                                     </div>
                                     {% else %}
                                     <span class="text-sm font-medium text-on-surface">No chair assigned</span>
                                     {% endif %}
+                                    {% if pairing.adjudicators.panellists %}
+                                    <div class="flex flex-col gap-2 mt-2">
+                                        {% for adjudicator in pairing.adjudicators.panellists %}
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-on-primary">
+                                                {{ adjudicator.name|first|upper }}
+                                            </div>
+                                            <span class="text-sm font-medium text-on-surface">{{ adjudicator.name }} &copy;</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+
                                 </td>
                                 <td class="px-8 py-6 text-right">
                                     {% if pairing.adjudicators.chair %}
