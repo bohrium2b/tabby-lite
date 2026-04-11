@@ -291,7 +291,7 @@ def ballot(request, passphrase):
         # Now create Sheet
         sheet = Sheet(
             teams=[result_team1, result_team2],
-            adjudicator=pairing.adjudicators["chair"].url
+            adjudicator=None
         )
         print(sheet)
         # Create Result

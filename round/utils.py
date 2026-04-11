@@ -197,7 +197,7 @@ class ResultTeam:
 
 
 class Sheet:
-    def __init__(self, teams: list[ResultTeam], adjudicator: Adjudicator):
+    def __init__(self, teams: list[ResultTeam], adjudicator: Adjudicator | None = None):
         self.teams = teams
         self.adjudicator = adjudicator
     def __str__(self):
