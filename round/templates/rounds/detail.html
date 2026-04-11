@@ -142,7 +142,19 @@
                                             <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-on-primary">
                                                 {{ adjudicator.name|first|upper }}
                                             </div>
-                                            <span class="text-sm font-medium text-on-surface">{{ adjudicator.name }} &copy;</span>
+                                            <span class="text-sm font-medium text-on-surface">{{ adjudicator.name }} &#9413;</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                    {% if pairing.adjudicators.trainees %}
+                                    <div class="flex flex-col gap-2 mt-2">
+                                        {% for adjudicator in pairing.adjudicators.trainees %}
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-on-secondary">
+                                                {{ adjudicator.name|first|upper }}
+                                            </div>
+                                            <span class="text-sm font-medium text-on-surface">{{ adjudicator.name }} &#9417;</span>
                                         </div>
                                         {% endfor %}
                                     </div>
