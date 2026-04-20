@@ -9,6 +9,7 @@ on:
       - 'Dockerfile'
       - '.github/workflows/docker-image.yml'
       - '**/Dockerfile'
+      - '**'
   workflow_dispatch:
 
 jobs:
