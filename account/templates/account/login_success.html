@@ -4,7 +4,7 @@
 {% block content %}
 <div style="text-align: center; margin-top: 50px; animation: fadeIn 2s;">
     <div style="position: relative; display: inline-block;">
-        <div class="checkmark-circle" hx-get="{% url 'round:rounds_list' %}" hx-trigger="load delay:5s" hx-target="body" hx-swap="innerHTML" hx-push-url="true">
+        <div class="checkmark-circle" hx-get="{% url 'round:rounds_list' %}"  hx-trigger="load delay:5s" hx-target="body" hx-swap="innerHTML" hx-push-url="true">
             <div class="accent-lines" aria-hidden="true"></div>
             <i class="bi bi-check" style="color: white; font-size: 4rem; display: flex; justify-content: center; align-items: center;"></i>
         </div>

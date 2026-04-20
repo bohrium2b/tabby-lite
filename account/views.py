@@ -48,15 +48,23 @@ def login_view(request):
         # Handle the login logic here
         username = request.POST.get('username')
         password = request.POST.get('password')
+        nextroute = request.POST.get('next')
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            # If nextroute, redirect there
+            if nextroute is not None and nextroute != '' and nextroute != 'None':
+                return redirect(nextroute)
             # Redirect to a success page or dashboard
             return HttpResponseRedirect(reverse('account:login_success'))
         else:
             # Handle authentication failure
             return render(request, 'account/login.html', {'error': 'Invalid credentials'})
-    return render(request, 'account/login.html')
+    nextroute = request.GET.get('next')
+    if nextroute:
+        messages.info(request, 'Please log in to access the requested page.')
+    
+    return render(request, 'account/login.html', {'next': nextroute})
 
 
 def login_success(request):

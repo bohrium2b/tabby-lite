@@ -24,6 +24,9 @@
                             <label for="password" class="form-label">Password:</label>
                             <input type="password" id="password" name="password" class="form-control" required>
                         </div>
+                        <div>
+                            <input type="hidden" name="next" value="{{ next }}">
+                        </div>
                         <button type="submit" class="btn btn-primary w-100" hx-post="" hx-target="body"
                             hx-push-url="true" hx-swap="outerHTML">
                             <span class="htmx-indicator">

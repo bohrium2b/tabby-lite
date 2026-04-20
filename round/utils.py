@@ -5,13 +5,16 @@ import json
 import secrets
 from django.conf import settings
 from django.core.cache import cache
+import os
+from logging import debug
 
 
 def load_wordlist():
     """
     Load round/eff_large_wordlist.txt.
     """
-    with open("round/eff_large_wordlist.txt", "r") as f:
+    path = os.path.join(settings.BASE_DIR, 'round', 'eff_large_wordlist.txt')
+    with open(path, "r") as f:
         return [line.strip().split("\t")[1] for line in f]
     
 
@@ -288,6 +291,45 @@ def get_tournament(raw=False):
         return tournament_data
     return Tournament(**tournament_data)
 
+
+def get_tournament_conf(raw=False):
+    """
+    We will access a single api endpoint, then search for specific settings we want to get.
+
+    In general need to get:
+     - any custom text (staff, welcome, etc.)
+     - whether draws should be public
+     - other stuff
+    """
+    cache_key = "tabby:tournament_conf"
+    cached_conf_data = cache.get(cache_key)
+    if cached_conf_data is not None:
+        if raw:
+            return cached_conf_data
+        return cached_conf_data
+    # Implementation for fetching tournament configuration data from API endpoints
+    # This is a placeholder - replace with actual API calls
+    conf_data = {}
+    # Response is a list of dictionaries with a key "name" which is what we are searching for
+    response = requests.get(f"{ROOT_URI}/preferences", headers={
+        "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}"
+    }, timeout=TOURNAMENT_CACHE_TIMOUT_SECONDS)
+    debug(response.text)
+    response.raise_for_status()
+    raw_conf = json.loads(response.text)
+    # Process the raw configuration data to extract the specific settings we need
+    # This is a placeholder - replace with actual processing logic
+    # Tournament staff
+    conf_data["tournament_staff"] = next((item["value"] for item in raw_conf if item["name"] == "tournament_staff"), None)
+    # Welcome message
+    conf_data["welcome_message"] = next((item["value"] for item in raw_conf if item["name"] == "welcome_message"), None)
+    # Public draws
+    conf_data["public_draw"] = next((item["value"] for item in raw_conf if item["name"] == "public_draw"), None) != "off"
+
+    cache.set(cache_key, conf_data, timeout=TOURNAMENT_CACHE_TIMOUT_SECONDS)
+    if raw:
+        return conf_data
+    return conf_data
 
 
 def get_all_rounds(raw=False):
@@ -845,4 +887,19 @@ def create_ballot(round_seq, pairing_id, result: Result, motion_id=None, submitt
     print(response.request.body)
     response.raise_for_status()
     ballot_data = response.json()
+    # At this point the response must have been good
+    # So we can safely PATCH the debate to change the result_status to "C" - confirmed
+    response = requests.patch(
+        f"{ROOT_URI}/rounds/{round_seq}/pairings/{pairing_id}",
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
+        },
+        json={
+            "result_status": "C"
+        }
+
+    )
+    response.raise_for_status()
+    # Then return the ballot object
     return Ballot(**ballot_data)
