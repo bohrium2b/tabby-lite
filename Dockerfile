@@ -37,7 +37,6 @@ RUN mkdir -p /etc/nginx/sites-enabled
 RUN rm -f /etc/nginx/sites-available/default
 COPY deploy/nginx.passenger.conf /etc/nginx/sites-enabled/default
 # Enable all write on the logs directory
-RUN mkdir /home/app/web/logs
 RUN chmod 777 -R /home/app/web/logs
 # Enable all write on the cache directory
 RUN mkdir /home/app/web/cache
