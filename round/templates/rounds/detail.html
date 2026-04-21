@@ -38,6 +38,7 @@
                 </div>
 
                 <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+                    {% if user.is_authenticated %}
                     <a href="/account/logout" class="block no-underline">
                         <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-3 pr-4 shadow-sm min-w-[220px] hover:opacity-95">
                             <div class="flex items-center gap-3">
@@ -51,7 +52,21 @@
                             </div>
                         </div>
                     </a>
-
+                    {% else %}
+                    <a href="/account/login" class="block no-underline">
+                        <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-3 pr-4 shadow-sm min-w-[220px] hover:opacity-95">
+                            <div class="flex items-center gap-3">
+                                <div class="w-11 h-11 rounded-full bg-primary-container text-white flex items-center justify-center text-sm font-extrabold tracking-wide">
+                                    ?
+                                </div>
+                                <div>
+                                    <p class="text-[11px] uppercase tracking-[0.14rem] text-on-secondary-container font-semibold">Sign In</p>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endif %}
+                    {% if user.is_staff %}
                     {% if draw %}
                     <div class="relative">
                         <details class="group">
@@ -73,6 +88,7 @@
                             </div>
                         </details>
                     </div>
+                    {% endif %}
                     {% endif %}
                     <!-- Refresh button: sends POST to current URI and reloads on success -->
                     <button id="refresh-button" type="button" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold bg-surface-container-high text-on-surface snappy-academic scale-98-on-click border border-outline-variant/20 hover:opacity-95">
@@ -99,7 +115,9 @@
                                 <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem]">Aff (Proposition)</th>
                                 <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem]">Neg (Opposition)</th>
                                 <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem]">Adjudicator</th>
+                                {% if user.is_staff %}
                                 <th class="px-8 py-5 text-[0.6875rem] font-extrabold text-on-secondary-container uppercase tracking-[0.1rem] text-right">Confidential Ballot</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-outline-variant/10">
@@ -161,6 +179,7 @@
                                     {% endif %}
 
                                 </td>
+                                {% if user.is_staff %}
                                 <td class="px-8 py-6 text-right">
                                     {% if pairing.adjudicators.chair %}
                                         {% if pairing.ballot_pairing.completed %}
@@ -179,6 +198,7 @@
                                     <span class="text-sm font-medium text-on-surface">No chair assigned</span>
                                     {% endif %}
                                 </td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>

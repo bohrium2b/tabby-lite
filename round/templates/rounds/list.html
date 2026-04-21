@@ -55,12 +55,19 @@
                     </div>
                 </a>
             </div>
+            <section class="mt-12 mb-3">
+                {% if tournament_conf.welcome_message %}
+                <div class="bg-primary-container text-white p-4 rounded-lg">
+                    <p class="text-lg font-bold">Welcome!</p>
+                    <p>{{ tournament_conf.welcome_message | safe }}</p>
+                </div>
+                {% endif %}
 
+            </section>
             <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% for round in rounds %}
                 <article class="bg-white rounded-2xl p-6 shadow-sm border border-outline-variant/10">
-                    <h3 class="text-lg font-bold text-on-surface">{{ round.name }}</h3>
-                    <p class="text-sm text-on-secondary-container mt-2">Starts at: {{ round.starts_at }}</p>
+                    <h3 class="text-lg font-bold text-on-surface">{{ round.name }} {% if round.completed %}<span class="text-xs bg-green-500 inline-flex items-center px-3 py-1 rounded-full snappy-academic text-white font-medium">Completed</span>{% else %}<span class="text-xs bg-primary-container inline-flex items-center px-3 py-1 rounded-full snappy-academic text-white font-medium">Upcoming</span>{% endif %}</h3>
                     <div class="mt-4">
                         <a href="{% url 'round:rounds_detail' round.seq %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-container text-white text-sm font-semibold snappy-academic">View Details</a>
                     </div>

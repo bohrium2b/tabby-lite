@@ -1,0 +1,54 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>{{ team.long_name }}</title>
+    <link href="{% static 'tailwind.css' %}" rel="stylesheet">
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .snappy-academic {
+            transition: all 200ms cubic-bezier(0.05, 0.7, 0.1, 1.0);
+        }
+
+        .scale-98-on-click:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+
+<body class="bg-background text-on-surface font-body min-h-screen flex flex-col items-center">
+    <main class="w-full flex flex-col min-h-screen">
+        <div class="px-6 py-12 md:px-12 md:py-16 w-full max-w-7xl mx-auto flex-1">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-6">
+                <div>
+                    <h1 class="text-4xl font-extrabold font-headline">{{ team.long_name }}</h1>
+                    <p class="text-on-secondary-container text-sm mt-1">Team Information</p>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-12 md:px-12 md:py-16 w-full max-w-7xl mx-auto flex-2">
+            <div>
+                <p class="mt-1">Institution: {{ team.institution }}</p>
+            </div>
+        </div>
+        <!-- Cards for speakers -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for speaker in team.speakers %}
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-outline-variant/10">
+                <h3 class="text-lg font-bold text-on-surface">{{ speaker.name }}</h3>
+            </div>
+            {% endfor %}
+        </div>
+
+    </main>
+</body>
+
+</html>

@@ -6,7 +6,7 @@ from django.views.decorators.cache import cache_page
 from regex import match
 from round.emojis import EMOJI_LIST
 from round.models import BallotPairing
-from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, Team, create_ballot, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_tournament, get_venue, create_team, create_speaker, get_all_teams, generate_passphrase
+from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, Team, create_ballot, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_tournament, get_tournament_conf, get_venue, create_team, create_speaker, get_all_teams, generate_passphrase
 from django.contrib.auth.decorators import login_required
 from requests.exceptions import HTTPError
 import json
@@ -19,15 +19,15 @@ def rounds_list(request):
         rounds = get_all_rounds()  # Replace with actual function to fetch rounds
         teams = get_all_teams()
         tournament = get_tournament()
+        tournament_conf = get_tournament_conf()
         for team in teams:
             # Replace institution URL with institution name
             institution_name = get_institution(team.institution).name
             team.institution = institution_name
-        return render(request, 'rounds/list.html', {'rounds': rounds, 'teams': teams, 'tournament': tournament})
+        return render(request, 'rounds/list.html', {'rounds': rounds, 'teams': teams, 'tournament': tournament, 'tournament_conf': tournament_conf})
     return render(request, 'rounds/index.html')
 
 
-@login_required
 def rounds_detail(request, round_seq):
     # Replace with actual function to fetch a single round
     round = get_round_by_id(round_seq)
