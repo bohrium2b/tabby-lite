@@ -364,6 +364,21 @@ files = [
 ]
 
 [[package]]
+name = "python-dotenv"
+version = "1.2.2"
+description = "Read key-value pairs from a .env file and set them as environment variables"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a"},
+    {file = "python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3"},
+]
+
+[package.extras]
+cli = ["click (>=5.0)"]
+
+[[package]]
 name = "regex"
 version = "2026.4.4"
 description = "Alternative regular expression module, to replace re."
@@ -574,4 +589,4 @@ brotli = ["brotli"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "00bdc3c9cdfe76d3952b5afb4f9b4a563739f957fd94132c8976f091553117fd"
+content-hash = "93ba69132ef1a0350108e5575f5f019a284160a55320b04a99dffbd7ed209a3d"
