@@ -198,3 +198,4 @@ LOGGING = {
     },
 }
 
+CSRF_TRUSTED_ORIGINS = ["*"]
