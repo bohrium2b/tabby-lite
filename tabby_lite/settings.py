@@ -198,4 +198,4 @@ LOGGING = {
     },
 }
 
-CSRF_TRUSTED_ORIGINS = ["*"]
+CSRF_TRUSTED_ORIGINS = ["https://bohrium2b.hackclub.app"]
