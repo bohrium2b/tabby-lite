@@ -23,6 +23,9 @@ RUN apt-get update -y \
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Celery app module used by service scripts. Adjust if your app name differs.
+ENV CELERY_APP=tabby_lite
+
 # Install dependencies
 RUN /opt/venv/bin/pip install --upgrade pip setuptools wheel && /opt/venv/bin/pip install -e .
 
@@ -43,6 +46,17 @@ RUN mkdir /home/app/web/cache
 RUN chmod 777 -R /home/app/web/cache
 # Enable nginx
 RUN rm -f /etc/service/nginx/down
+RUN apt-get update -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cron \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /etc/service/celery-worker /etc/service/celery-beat /etc/service/cron \
+    && printf '%s\n' '#!/bin/sh' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" worker --loglevel=INFO' > /etc/service/celery-worker/run \
+    && chmod +x /etc/service/celery-worker/run \
+    && printf '%s\n' '#!/bin/sh' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" beat --loglevel=INFO' > /etc/service/celery-beat/run \
+    && chmod +x /etc/service/celery-beat/run \
+    && printf '%s\n' '#!/bin/sh' 'exec cron -f' > /etc/service/cron/run \
+    && chmod +x /etc/service/cron/run
+    
 EXPOSE 80
 
 # Start container with Phusion's init which will run Nginx + Passenger
