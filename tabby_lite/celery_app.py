@@ -28,6 +28,11 @@ app.conf.beat_schedule.update({
         "schedule": schedule(5 * 60),
         "args": (),
     }
+    ,"retry-pending-submissions": {
+        "task": "round.tasks.retry_pending_submissions",
+        "schedule": schedule(5 * 60),
+        "args": (),
+    }
 })
 
 

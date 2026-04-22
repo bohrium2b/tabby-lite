@@ -4,6 +4,9 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import mail_admins
 import random
+import importlib
+import time
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -122,9 +125,76 @@ def heartbeat():
 
 @shared_task
 def refresh_cache(key, fetch_callable_path=None):
-    """Placeholder task to refresh a cache key. Implement fetch logic in caller or pass callable path."""
-    # Minimal implementation: caller should implement more specific refresh tasks
-    logger.debug("refresh_cache called for key %s (no-op)", key)
+    """Background refresh for a cache key.
+
+    It will resolve a fetch callable either from the provided
+    `fetch_callable_path` or from metadata stored with the cache value
+    (set by `swr_get`). The callable is called synchronously and the
+    result is written back into the cache with an updated timestamp.
+    """
+    try:
+        # Try to load existing metadata from cache to learn stale_after/fetch path
+        stored = None
+        try:
+            stored = cache.get(key)
+        except Exception as exc:
+            logger.debug("refresh_cache: cache.get(%s) failed: %s", key, exc)
+
+        # Determine callable path
+        path = fetch_callable_path
+        stale_after = None
+        if not path and isinstance(stored, dict):
+            path = stored.get("fetch_callable")
+            stale_after = stored.get("stale_after")
+
+        if not path:
+            logger.debug("refresh_cache: no fetch callable available for %s", key)
+            return
+
+        try:
+            module_name, func_name = path.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            func = getattr(module, func_name)
+        except Exception as exc:
+            logger.debug("refresh_cache: failed to resolve %s: %s", path, exc)
+            return
+
+        try:
+            val = func()
+        except Exception as exc:
+            logger.debug("refresh_cache: fetch function %s raised: %s", path, exc)
+            return
+
+        now = int(time.time())
+        wrapper = {"v": val, "ts": now, "fetch_callable": path, "stale_after": stale_after}
+        try:
+            # Persist without expiry by default (timeout=None)
+            cache.set(key, wrapper, timeout=None)
+        except Exception as exc:
+            logger.debug("refresh_cache: cache.set(%s) failed: %s", key, exc)
+    except Exception as exc:  # pragma: no cover - best effort
+        logger.debug("refresh_cache top-level error for %s: %s", key, exc)
+
+
+
+@shared_task
+def retry_pending_submissions(batch_size=100):
+    """Find pending submissions and enqueue attempts.
+
+    This periodically scans `PendingSubmission` objects with
+    `STATUS_PENDING` and enqueues `sync_submission_to_api` for each.
+    """
+    try:
+        from round.models import PendingSubmission
+        pending_qs = PendingSubmission.objects.filter(status=PendingSubmission.STATUS_PENDING).order_by("id")[:batch_size]
+        for sub in pending_qs:
+            try:
+                # Enqueue an attempt to send this submission
+                sync_submission_to_api.delay(sub.id)
+            except Exception:
+                logger.debug("Failed to enqueue sync for PendingSubmission %s", sub.id)
+    except Exception as exc:  # pragma: no cover
+        logger.debug("retry_pending_submissions top-level error: %s", exc)
 
 
 
