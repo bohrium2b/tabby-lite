@@ -6,12 +6,18 @@ from django.views.decorators.cache import cache_page
 from regex import match
 from round.emojis import EMOJI_LIST
 from round.models import BallotPairing
-from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, Team, create_ballot, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_tournament, get_tournament_conf, get_venue, create_team, create_speaker, get_all_teams, generate_passphrase
+import logging
+from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, Team, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_tournament, get_tournament_conf, get_venue, get_all_teams, generate_passphrase
+from round.models import PendingSubmission
+from round.tasks import sync_submission_to_api
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from requests.exceptions import HTTPError
 import json
 import csv
 import random
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 def rounds_list(request):
@@ -204,24 +210,35 @@ def registration(request):
 
         print(speaker1, speaker2, speaker3, speaker4)
         print(f"Institution: {institution.name}")
-        try:
-            team = create_team(short_name=f"{institution.code} {body.get('teamName')}", long_name=f"{institution.name} {body.get('teamName')}", reference=body.get('teamName'), emoji=random.choice(EMOJI_LIST)[0], institution=institution.url)
-        except HTTPError as e:
-            # If the error is related to emoji not being unique or stuff like that, retry with a different emoji
-            if "emoji" in str(e).lower():
-                team = create_team(short_name=f"{institution.code} {body.get('teamName')}", long_name=f"{institution.name} {body.get('teamName')}", reference=body.get('teamName'), emoji=random.choice(EMOJI_LIST)[0], institution=institution.url)
-
-            print(f"Error creating team: {e}")
-            return HttpResponse(json.dumps({'status': 'error', 'message': 'Failed to create team'}), content_type='application/json')
-        team_id = team.id
-        create_speaker(speaker1['name'], team_id=team_id, email=speaker1['email'], institution=speaker1['institution'])
-        create_speaker(speaker2['name'], team_id=team_id, email=speaker2['email'], institution=speaker2['institution'])
-        create_speaker(speaker3['name'], team_id=team_id, email=speaker3['email'], institution=speaker3['institution'])
+        # Create an optimistic PendingSubmission for team creation, with follow-up speakers
+        team_payload = {
+            "short_name": f"{institution.code} {body.get('teamName')}",
+            "long_name": f"{institution.name} {body.get('teamName')}",
+            "reference": body.get('teamName'),
+            "emoji": random.choice(EMOJI_LIST)[0],
+            "institution": institution.url,
+            "use_institution_prefix": True,
+        }
+        followup = {"create_speakers": [speaker1, speaker2, speaker3]}
         if speaker4['name'] and speaker4['email']:
-            create_speaker(speaker4['name'], team_id=team_id, email=speaker4['email'], institution=speaker4['institution'])
-        # Invalidate all_teams cache
-        cache.delete('tabby:teams')
-        return HttpResponse(json.dumps({'status': 'success', 'message': f'Registration successful! Welcome {team.emoji} {team.short_name}!'}), content_type='application/json')
+            followup["create_speakers"].append(speaker4)
+
+        submission = PendingSubmission.objects.create(payload=team_payload, endpoint=f"{settings.TABBY_ROOT}/teams", status=PendingSubmission.STATUS_PENDING)
+        # attach followup data inside payload for worker to act on
+        submission.payload = {**submission.payload, "_followup": followup}
+        submission.save()
+        try:
+            sync_submission_to_api.delay(submission.id)
+        except Exception as exc:
+            logger.exception("Failed to enqueue sync_submission_to_api for submission %s", submission.id)
+
+        # Invalidate local teams cache so SWR will revalidate in background
+        try:
+            cache.delete('tabby:teams')
+        except Exception:
+            pass
+
+        return HttpResponse(json.dumps({'status': 'success', 'message': 'Registration queued — Your team is ' + team_payload['emoji'] + team_payload['short_name'] + ', and will be confirmed shortly.' }), content_type='application/json')
     
     institutions = get_all_institutions()
     team_name = generate_passphrase("W W") # Get a random word
@@ -300,14 +317,51 @@ def ballot(request, passphrase):
         )
         print(result)
         # Submit Ballot
+        # Create optimistic PendingSubmission for ballot submission
+        payload = {
+            "result": {
+                "sheets": [
+                    {
+                        "teams": [
+                            {
+                                "side": result.sheets[0].teams[0].side,
+                                "points": result.sheets[0].teams[0].points,
+                                "win": result.sheets[0].teams[0].win,
+                                "score": result.sheets[0].teams[0].score,
+                                "team": result.sheets[0].teams[0].team,
+                                "speeches": [
+                                    {"ghost": s.ghost, "score": s.score, "speaker": s.speaker} for s in result.sheets[0].teams[0].speeches
+                                ],
+                            },
+                            {
+                                "side": result.sheets[0].teams[1].side,
+                                "points": result.sheets[0].teams[1].points,
+                                "win": result.sheets[0].teams[1].win,
+                                "score": result.sheets[0].teams[1].score,
+                                "team": result.sheets[0].teams[1].team,
+                                "speeches": [
+                                    {"ghost": s.ghost, "score": s.score, "speaker": s.speaker} for s in result.sheets[0].teams[1].speeches
+                                ],
+                            },
+                        ],
+                        "adjudicator": result.sheets[0].adjudicator,
+                    }
+                ]
+            },
+            "_meta": {"round_seq": round.seq, "pairing_id": pairing.id, "local_ballot_pairing_pk": ballot_pairing.pk},
+            "_followup": {"debate_status": "confirmed"}
+        }
+
+        submission = PendingSubmission.objects.create(payload=payload, endpoint=f"{settings.TABBY_ROOT}/rounds/{round.seq}/pairings/{pairing.id}/ballots", status=PendingSubmission.STATUS_PENDING)
+        # Then modify debate as in utils
+        # mark pairing completed locally to block duplicates (optimistic)
+        ballot_pairing.completed = True
+        ballot_pairing.save()
         try:
-            completed_ballot = create_ballot(round_seq=round.seq, pairing_id=pairing.id, result=result, single_adj=False, submitter=pairing.adjudicators["chair"], confirmed=True)
-            ballot_pairing.completed = True
-            ballot_pairing.save()
-            return HttpResponse(json.dumps({"success": True}))
-        except HTTPError as e:
-            print(e)
-            return HttpResponse(json.dumps({"error": "Failed to submit ballot"}), status=500)
+            sync_submission_to_api.delay(submission.id)
+        except Exception as exc:
+            logger.exception("Failed to enqueue sync_submission_to_api for ballot submission %s", submission.id)
+        return HttpResponse(json.dumps({"success": True}))
         
     if ballot_pairing.completed:
         return render(request, 'rounds/empty_ballot.html', {'error': 'This ballot has already been submitted.'})

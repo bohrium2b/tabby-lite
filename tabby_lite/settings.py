@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import ssl
 from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
@@ -156,11 +157,46 @@ CACHES = {
         "LOCATION": os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # Short socket timeouts to avoid hanging on remote Redis
+            "SOCKET_CONNECT_TIMEOUT": 2,
+            "SOCKET_TIMEOUT": 2,
+            "CONNECTION_POOL_KWARGS": {"max_connections": 10},
         }
     }
 
 }
 
+
+# Allow opt-in Redis usage via env var so local dev can keep file-based cache.
+DJANGO_USE_REDIS = os.environ.get("DJANGO_USE_REDIS", "False") == "True"
+if DJANGO_USE_REDIS:
+    CACHES["default"] = CACHES["redis"]
+
+# Celery configuration (broker & result backend). Default to REDIS_URL when provided.
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+# If using a rediss:// URL, configure SSL options for the redis client and Celery
+if CELERY_BROKER_URL.startswith("rediss://") or CACHES.get("redis", {}).get("LOCATION", "").startswith("rediss://"):
+    # For django-redis: set ssl verification mode in connection pool kwargs
+    try:
+        redis_opts = CACHES["redis"]["OPTIONS"]
+        cp_kwargs = redis_opts.setdefault("CONNECTION_POOL_KWARGS", {})
+        # Use ssl.CERT_NONE by default to avoid forcing cert validation in hosted environments
+        cp_kwargs.setdefault("ssl_cert_reqs", ssl.CERT_NONE)
+        # Ensure redis-py uses SSL
+        redis_opts.setdefault("SSL", True)
+    except Exception:
+        pass
+
+    # For Celery/kombu: instruct broker SSL params and Redis backend SSL
+    CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": ssl.CERT_NONE}
+    # Celery's Redis backend expects `redis_backend_use_ssl` config
+    CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": ssl.CERT_NONE}
 
 # Logging: write full debug traces to a rotating file in the project `logs/` directory.
 LOG_DIR = BASE_DIR / "logs"

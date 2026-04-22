@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.cache import cache
 import os
 from logging import debug
+from round.cache_helpers import swr_get
 
 
 def load_wordlist():
@@ -279,17 +280,16 @@ def generate_passphrase(format="w-w-w-LLLnn"):
 
 def get_tournament(raw=False):
     cache_key = "tabby:tournament"
-    cached_tournament_data = cache.get(cache_key)
-    if cached_tournament_data is not None:
-        if raw:
-            return cached_tournament_data
-        return Tournament(**cached_tournament_data)
-    response = requests.get(f"{ROOT_URI}")
-    tournament_data = json.loads(response.text)
-    cache.set(cache_key, tournament_data, timeout=TOURNAMENT_CACHE_TIMOUT_SECONDS)
+
+    def fetch():
+        response = requests.get(f"{ROOT_URI}")
+        response.raise_for_status()
+        return response.json()
+
+    data = swr_get(cache_key, fetch_func=fetch, cache_timeout=None)
     if raw:
-        return tournament_data
-    return Tournament(**tournament_data)
+        return data
+    return Tournament(**data)
 
 
 def get_tournament_conf(raw=False):
@@ -302,34 +302,23 @@ def get_tournament_conf(raw=False):
      - other stuff
     """
     cache_key = "tabby:tournament_conf"
-    cached_conf_data = cache.get(cache_key)
-    if cached_conf_data is not None:
-        if raw:
-            return cached_conf_data
-        return cached_conf_data
-    # Implementation for fetching tournament configuration data from API endpoints
-    # This is a placeholder - replace with actual API calls
-    conf_data = {}
-    # Response is a list of dictionaries with a key "name" which is what we are searching for
-    response = requests.get(f"{ROOT_URI}/preferences", headers={
-        "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}"
-    }, timeout=TOURNAMENT_CACHE_TIMOUT_SECONDS)
-    debug(response.text)
-    response.raise_for_status()
-    raw_conf = json.loads(response.text)
-    # Process the raw configuration data to extract the specific settings we need
-    # This is a placeholder - replace with actual processing logic
-    # Tournament staff
-    conf_data["tournament_staff"] = next((item["value"] for item in raw_conf if item["name"] == "tournament_staff"), None)
-    # Welcome message
-    conf_data["welcome_message"] = next((item["value"] for item in raw_conf if item["name"] == "welcome_message"), None)
-    # Public draws
-    conf_data["public_draw"] = next((item["value"] for item in raw_conf if item["name"] == "public_draw"), None) != "off"
 
-    cache.set(cache_key, conf_data, timeout=TOURNAMENT_CACHE_TIMOUT_SECONDS)
-    if raw:
+    def fetch():
+        response = requests.get(f"{ROOT_URI}/preferences", headers={
+            "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}"
+        }, timeout=TOURNAMENT_CACHE_TIMOUT_SECONDS)
+        response.raise_for_status()
+        raw_conf = response.json()
+        conf_data = {}
+        conf_data["tournament_staff"] = next((item["value"] for item in raw_conf if item.get("name") == "tournament_staff"), None)
+        conf_data["welcome_message"] = next((item["value"] for item in raw_conf if item.get("name") == "welcome_message"), None)
+        conf_data["public_draw"] = next((item["value"] for item in raw_conf if item.get("name") == "public_draw"), None) != "off"
         return conf_data
-    return conf_data
+
+    data = swr_get(cache_key, fetch_func=fetch, cache_timeout=None)
+    if raw:
+        return data
+    return data
 
 
 def get_all_rounds(raw=False):
@@ -372,44 +361,29 @@ def get_all_rounds(raw=False):
     ]
     """
     cache_key = "tabby:round"
-    cached_round_data = cache.get(cache_key)
-    if cached_round_data is not None:
-        if raw:
-            return cached_round_data
-        return [Round(**round_data) for round_data in cached_round_data]
-    response = requests.get(f"{ROOT_URI}/rounds")
-    rounds_data = json.loads(response.text)
-    cache.set(cache_key, rounds_data, timeout=ANY_ALL_CACHE_TIMEOUT_SECONDS)
+
+    def fetch():
+        response = requests.get(f"{ROOT_URI}/rounds")
+        response.raise_for_status()
+        return response.json()
+
+    rounds_data = swr_get(cache_key, fetch_func=fetch, cache_timeout=None)
     if raw:
         return rounds_data
-
     return [Round(**round_data) for round_data in rounds_data]
 
 
 def get_round_by_id(round_seq, raw=False):
     cache_key = f"tabby:round:{round_seq}"
-    cached_round_data = cache.get(cache_key)
-    if cached_round_data is not None:
-        if raw:
-            return cached_round_data
-        return Round(**cached_round_data)
 
-    # If not found in direct cache, search all_rounds cache
-    all_round_cache_key = f"tabby:round"
-    all_rounds_data = cache.get(all_round_cache_key)
-    if all_rounds_data is not None:
-        round_data = next((round for round in all_rounds_data if round["id"] == round_seq), None)
-        if round_data:
-            if raw:
-                return round_data
-            return Round(**round_data)
+    def fetch():
+        response = requests.get(f"{ROOT_URI}/rounds/{round_seq}")
+        response.raise_for_status()
+        return response.json()
 
-    response = requests.get(f"{ROOT_URI}/rounds/{round_seq}")
-    round_data = json.loads(response.text)
-    cache.set(cache_key, round_data, timeout=ROUND_CACHE_TIMEOUT_SECONDS)
+    round_data = swr_get(cache_key, fetch_func=fetch, cache_timeout=None)
     if raw:
         return round_data
-
     return Round(**round_data)
 
 
@@ -453,82 +427,69 @@ def get_round_draw(round_seq, raw=False):
     }
     """
     cache_key = f"tabby:round_draw:{round_seq}"
-    cached_draw_data = cache.get(cache_key)
-    if cached_draw_data is not None:
-        if raw:
-            return cached_draw_data
-        return [Draw(**pairing_data) for pairing_data in cached_draw_data]
 
-    response = requests.get(f"{ROOT_URI}/rounds/{round_seq}/pairings", headers={
-        "Accept": "application/json",
-        "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
-    })
-    draw_data = json.loads(response.text)
-    if not isinstance(draw_data, list):
-        raise ValueError("Draw not yet released")
+    def fetch():
+        response = requests.get(f"{ROOT_URI}/rounds/{round_seq}/pairings", headers={
+            "Accept": "application/json",
+            "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
+        })
+        response.raise_for_status()
+        draw_data = response.json()
+        if not isinstance(draw_data, list):
+            raise ValueError("Draw not yet released")
+        return draw_data
 
-
-    draw = [Draw(**pairing_data) for pairing_data in draw_data]
-    cache.set(cache_key, draw_data, timeout=ROUND_DRAW_CACHE_TIMEOUT_SECONDS)
+    draw_data = swr_get(cache_key, fetch_func=fetch, cache_timeout=None)
     if raw:
         return draw_data
-    return draw
+    return [Draw(**pairing_data) for pairing_data in draw_data]
 
 
 
 def get_all_teams(raw=False):
     cache_key = f"tabby:teams"
-    cached_teams_data = cache.get(cache_key)
-    if cached_teams_data is not None:
-        if raw:
-            return cached_teams_data
-        return [Team(**team_data) for team_data in cached_teams_data]
 
-    response = requests.get(f"{ROOT_URI}/teams", headers={
-        "Accept": "application/json",
-        "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
+    def fetch():
+        response = requests.get(f"{ROOT_URI}/teams", headers={
+            "Accept": "application/json",
+            "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
         })
-    teams_data = json.loads(response.text)
-    cache.set(cache_key, teams_data, timeout=ANY_ALL_CACHE_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        return response.json()
+
+    teams_data = swr_get(cache_key, fetch_func=fetch, cache_timeout=None)
     if raw:
         return teams_data
     return [Team(**team_data) for team_data in teams_data]
 
 
 def get_team_by_id(team_id, raw=False):
-    """
-    {"id":7,"url":"https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26/teams/7","institution":"https://tabbycat-website-6btp.onrender.com/api/v1/institutions/2","break_categories":["https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26/break-categories/1"],"institution_conflicts":["https://tabbycat-website-6btp.onrender.com/api/v1/institutions/2"],"venue_constraints":[],"answers":[],"reference":"3","short_reference":"3","code_name":"Biting Lip","short_name":"RED 3","long_name":"Macleans Red 3","use_institution_prefix":true,"seed":null,"emoji":"🫦","registration_status":"C","speakers":[{"id":19,"url":"https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26/speakers/19","name":"Speaker 1","categories":[],"_links":{"checkin":"https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26/speakers/19/checkin"},"barcode":"929735","answers":[],"last_name":null,"email":null,"phone":"","anonymous":false,"code_name":"01481770","url_key":"o6xx78ps","gender":"","pronoun":""},{"id":20,"url":"https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26/speakers/20","name":"Speaker 2","categories":[],"_links":{"checkin":"https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26/speakers/20/checkin"},"barcode":"541685","answers":[],"last_name":null,"email":null,"phone":"","anonymous":false,"code_name":"88999449","url_key":"vh2lcq6j","gender":"","pronoun":""},{"id":21,"url":"https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26/speakers/21","name":"Speaker 3","categories":[],"_links":{"checkin":"https://tabbycat-website-6btp.onrender.com/api/v1/tournaments/mac26/speakers/21/checkin"},"barcode":"675405","answers":[],"last_name":null,"email":null,"phone":"","anonymous":false,"code_name":"09877898","url_key":"ecppqbpc","gender":"","pronoun":""}]}
-    
-    """
     cache_key = f"tabby:team:{team_id}"
-    cached_team_data = cache.get(cache_key)
-    if cached_team_data is not None:
-        if raw:
-            return cached_team_data
 
-        return Team(**cached_team_data)
+    # First try master teams cache for a quick lookup to avoid extra requests
+    try:
+        all_teams = cache.get("tabby:teams")
+        if all_teams:
+            team_data = next((t for t in all_teams if t.get("id") == int(team_id)), None)
+            if team_data:
+                if raw:
+                    return team_data
+                return Team(**team_data)
+    except Exception:
+        pass
 
-    # Now try to see if it is in all_teams_cache
-    all_team_cache_key = f"tabby:teams"
-    all_teams_data = cache.get(all_team_cache_key)
-    if all_teams_data is not None:
-        team_data = next((team for team in all_teams_data if team["id"] == team_id), None)
-        if team_data:
-            if raw:
-                return team_data
-            return Team(**team_data)
+    def fetch():
+        response = requests.get(
+            f"{ROOT_URI}/teams/{team_id}",
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
+            },
+        )
+        response.raise_for_status()
+        return response.json()
 
-
-    response = requests.get(
-        f"{ROOT_URI}/teams/{team_id}",
-        headers={
-            "Accept": "application/json",
-            "Authorization": f"Token {TABBY_AUTHENTICATION_TOKEN}",
-        },
-    )
-    response.raise_for_status()
-    team_data = response.json()
-    cache.set(cache_key, team_data, timeout=TEAM_CACHE_TIMEOUT_SECONDS)
+    team_data = swr_get(cache_key, fetch_func=fetch, cache_timeout=None)
     if raw:
         return team_data
     return Team(**team_data)
