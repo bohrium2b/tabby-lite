@@ -50,9 +50,9 @@ RUN apt-get update -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cron \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/service/celery-worker /etc/service/celery-beat /etc/service/cron \
-    && printf '%s\n' '#!/bin/sh' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" worker --loglevel=INFO' > /etc/service/celery-worker/run \
+    && printf '%s\n' '#!/bin/sh' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" worker -c 1 --loglevel=INFO' > /etc/service/celery-worker/run \
     && chmod +x /etc/service/celery-worker/run \
-    && printf '%s\n' '#!/bin/sh' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" beat --loglevel=INFO' > /etc/service/celery-beat/run \
+    && printf '%s\n' '#!/bin/sh' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" beat -c 1 --loglevel=INFO' > /etc/service/celery-beat/run \
     && chmod +x /etc/service/celery-beat/run \
     && printf '%s\n' '#!/bin/sh' 'exec cron -f' > /etc/service/cron/run \
     && chmod +x /etc/service/cron/run

@@ -11,7 +11,7 @@ services:
     branch: main
     region: oregon
     buildCommand: pip install poetry && poetry install && poetry run python manage.py migrate && poetry run python manage.py collectstatic
-    startCommand: poetry run gunicorn tabby_lite.wsgi:application --bind 0.0.0.0:$PORT & poetry run celery -A tabby_lite worker --loglevel=info & poetry run celery -A tabby_lite beat --loglevel=info
+    startCommand: poetry run gunicorn tabby_lite.wsgi:application --bind 0.0.0.0:$PORT & poetry run celery -A tabby_lite worker --loglevel=info -c 1
     healthCheckPath: /
     autoDeploy: true
     envVars:
@@ -33,6 +33,6 @@ services:
         value: "<REPLACE_WITH_REDIS_URL>"
         sync: false
       - key: DJANGO_USE_REDIS
-        value: "true"
+        value: "True"
         sync: false
 
