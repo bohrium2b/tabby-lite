@@ -40,6 +40,54 @@
             50%{transform:scale(1.15);opacity:0.4}
             100%{transform:scale(0.6);opacity:0.95}
         }
+            /* Help modal / FAB styles */
+            .fab-help {
+                position: fixed;
+                right: 1.25rem;
+                bottom: 1.25rem;
+                z-index: 60;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 56px;
+                height: 56px;
+                border-radius: 9999px;
+                background: #0b6b8c;
+                color: white;
+                box-shadow: 0 8px 24px rgba(11,107,140,0.18);
+                cursor: pointer;
+            }
+
+            .help-modal-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                display: none;
+                align-items: center;
+                justify-content: center;
+                z-index: 70;
+                padding: 1.5rem;
+            }
+
+            .help-modal {
+                background: white;
+                max-width: 900px;
+                width: 100%;
+                max-height: 90vh;
+                overflow: auto;
+                border-radius: 12px;
+                box-shadow: 0 12px 40px rgba(2,6,23,0.2);
+            }
+
+            .help-modal-header {
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                padding:1rem 1.25rem;
+                border-bottom:1px solid rgba(15,23,42,0.04);
+            }
+
+            .help-modal-body{padding:1rem 1.25rem}
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -546,7 +594,7 @@
                 <div class="group relative inline-flex items-center">
                                         <div class="absolute -inset-0.5 bg-surface-container-lowest rounded-full blur opacity-20 transition duration-500 group-hover:opacity-40"></div>
                                         <div class="pulsar-wrapper">
-                                            <button id="submit_ballot" class="relative rounded-full bg-primary px-10 py-4 font-headline text-xl font-bold  text-on-primary transition-transform active:scale-[0.98] md:px-14 md:py-5 md:text-2xl disabled:opacity-50">
+                                            <button id="submit_ballot" class="relative rounded-full bg-primary px-10 py-4 font-headline text-xl font-bold cursor-pointer text-on-primary transition-transform active:scale-[0.98] md:px-14 md:py-5 md:text-2xl disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                                                     <span id="submit_ballot_label">Submit Ballot</span>
                                             </button>
                                             <div id="submit_loading" class="pulsar hidden" aria-hidden="true"></div>
@@ -556,6 +604,25 @@
                     Once submitted, this ballot cannot be edited.
                 </p>
             </section>
+            <!-- Floating help button -->
+            <button id="open_help_btn" aria-label="Open adjudicator help" class="fab-help cursor-pointer" title="Adjudicator Guide">
+                <span class="material-symbols-outlined text-on-primary text-sm">help_outline</span>
+            </button>
+
+            <!-- Help modal -->
+            <div id="help_modal" class="help-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+                <div class="help-modal" role="document">
+                    <div class="help-modal-header">
+                        <h3 class="text-lg font-bold">Adjudicator Guide</h3>
+                        <div>
+                            <button id="close_help_btn" aria-label="Close help" class="rounded-full bg-surface-container-low px-3 py-2 cursor-pointer">Close</button>
+                        </div>
+                    </div>
+                    <div id="help_modal_body" class="help-modal-body">
+                        <p class="text-sm text-secondary">Loading help…</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
     {% else %}
@@ -566,7 +633,59 @@
             </div>
         </main>
     {% endif %}
+</body>
 
+<script>
+    (function(){
+        const openBtn = document.getElementById('open_help_btn');
+        const closeBtn = document.getElementById('close_help_btn');
+        const modal = document.getElementById('help_modal');
+        const body = document.getElementById('help_modal_body');
+        const staticUrl = "{% static 'help/ballot.html' %}";
+
+        const showModal = () => {
+            if (!modal) return;
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden','false');
+            // Load content if empty or placeholder
+            if (body && body.dataset.loaded !== 'true') {
+                fetch(staticUrl, {credentials: 'same-origin'})
+                    .then(r => r.ok ? r.text() : Promise.reject('Failed to load'))
+                    .then(html => {
+                        if (body) {
+                            body.innerHTML = html;
+                            body.dataset.loaded = 'true';
+                        }
+                    }).catch(err => {
+                        console.log(err)
+                        if (body) body.innerHTML = '<p class="text-sm text-red-600">Could not load help content.</p>';
+                    });
+            }
+            // trap focus minimally
+            setTimeout(()=>{
+                const focusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]');
+                if (focusable) focusable.focus();
+            },50);
+        };
+
+        const hideModal = () => {
+            if (!modal) return;
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden','true');
+        };
+
+        if (openBtn) openBtn.addEventListener('click', showModal);
+        if (closeBtn) closeBtn.addEventListener('click', hideModal);
+        if (modal) modal.addEventListener('click', (ev)=>{
+            if (ev.target === modal) hideModal();
+        });
+        document.addEventListener('keydown', (ev)=>{
+            if (ev.key === 'Escape') hideModal();
+        });
+    })();
+</script>
+
+</html>
 </body>
 
 </html>
