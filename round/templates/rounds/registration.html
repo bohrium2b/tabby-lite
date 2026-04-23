@@ -32,6 +32,29 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const submitButton = document.getElementById('submitRegistration');
+            const submitSpinner = document.getElementById('submitSpinner');
+            const submitText = document.getElementById('submitText');
+            const form = document.querySelector('form');
+
+            function setSubmitting(isSubmitting) {
+                if (isSubmitting) {
+                    submitSpinner.classList.remove('hidden');
+                    submitText.textContent = 'Submitting...';
+                    submitButton.classList.add('opacity-60', 'cursor-not-allowed');
+                    form.classList.add('opacity-60');
+                } else {
+                    submitSpinner.classList.add('hidden');
+                    submitText.textContent = 'Submit Registration';
+                    submitButton.classList.remove('opacity-60', 'cursor-not-allowed');
+                    form.classList.remove('opacity-60');
+                }
+
+                const controls = form.querySelectorAll('input, select, textarea, button');
+                controls.forEach((el) => {
+                    el.disabled = isSubmitting;
+                });
+            }
+
             submitButton.addEventListener('click', function (event) {
                 event.preventDefault();
                 // Collect form data and submit via AJAX or handle form submission logic here
@@ -54,7 +77,8 @@
                     return;
                 }
 
-                console.log('Form Data:', formData);
+                setSubmitting(true);
+
                 fetch('/registration/', {
                     method: 'POST',
                     headers: {
@@ -65,14 +89,13 @@
                 })
                     .then(response => response.json())
                     .then(data => {
-                        console.log('Success:', data);
-                        // Handle success (e.g., show a success message, redirect, etc.)
-                        document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center"><h1 class="text-3xl font-bold text-green-600">' + data.message + '</h1></div>';
+                        document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center"><h1 class="text-3xl font-bold text-green-600">' + (data.message || 'Registration submitted') + '</h1></div>';
                     })
                     .catch((error) => {
                         console.error('Error:', error);
                         // Handle error (e.g., show an error message)
                         alert('An error occurred while submitting your registration. Please try again.');
+                        setSubmitting(false);
                     });
             });
         });
@@ -257,11 +280,15 @@
                                 Submission</span>
                         </div>
                         <button
-                            class="w-full sm:w-auto px-12 py-5 bg-gradient-to-r from-primary-container to-on-primary-container text-white rounded-xl font-bold text-lg tracking-tight shadow-2xl shadow-on-primary-container/30 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+                            class="w-full sm:w-auto px-12 py-5 bg-gradient-to-r from-primary-container to-on-primary-container text-white rounded-xl font-bold text-lg tracking-tight shadow-2xl shadow-on-primary-container/30 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                             type="submit"
                             id="submitRegistration"
                             name="submitRegistration">
-                            Submit Registration
+                            <svg id="submitSpinner" class="hidden animate-spin h-5 w-5 mr-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                            </svg>
+                            <span id="submitText">Submit Registration</span>
                         </button>
                     </div>
                 </section>

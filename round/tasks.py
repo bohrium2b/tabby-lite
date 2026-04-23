@@ -46,6 +46,8 @@ def sync_submission_to_api(self, submission_id):
                         for speaker in followup.get("create_speakers"):
                             speaker_payload = speaker.copy()
                             speaker_payload["team"] = team_url
+                            speaker_payload["_meta"] = {"origin": "followup", "parent_submission_id": submission.id}
+                            speaker_payload["categories"] = []
                             try:
                                 # Attempt to create speaker synchronously here; if it fails, enqueue as PendingSubmission
                                 r = requests.post(f"{settings.TABBY_HOST}/api/v1/tournaments/{settings.TABBY_TOURNAMENT}/speakers", json=speaker_payload, headers={"Authorization": f"Token {settings.TABBY_AUTHENTICATION_TOKEN}"}, timeout=10)
