@@ -365,7 +365,7 @@ def ballot(request, passphrase):
         
     if ballot_pairing.completed:
         return render(request, 'rounds/empty_ballot.html', {'error': 'This ballot has already been submitted.'})
-    return render(request, 'rounds/ballot.html', {'ballot_pairing': ballot_pairing, 'round': round, 'pairing': pairing})
+    return render(request, 'rounds/ballot.html', {'ballot_pairing': ballot_pairing, 'round': round, 'pairing': pairing, 'passphrase': ballot_pairing.passphrase})
 
 
 @cache_page(3600)
