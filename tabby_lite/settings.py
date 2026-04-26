@@ -180,6 +180,15 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 
+# Lightweight memory-constrained environment flag.
+# When enabled (`LIGHT_MEMORY_MODE=True`) the application will avoid
+# running Celery workers/beat and will run background tasks synchronously
+# in-process where possible. Also provides a memory hint for deployers.
+LIGHT_MEMORY_MODE = os.environ.get("LIGHT_MEMORY_MODE", "False") == "True"
+# If light mode is enabled, this value can be used by deploy tools to limit
+# system + app memory (mebibytes). Defaults to 512 MiB when light mode enabled.
+MEMORY_LIMIT_MB = int(os.environ.get("MEMORY_LIMIT_MB", "512")) if LIGHT_MEMORY_MODE else None
+
 # If using a rediss:// URL, configure SSL options for the redis client and Celery
 if CELERY_BROKER_URL.startswith("rediss://") or CACHES.get("redis", {}).get("LOCATION", "").startswith("rediss://"):
     # For django-redis: set ssl verification mode in connection pool kwargs

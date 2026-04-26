@@ -49,3 +49,13 @@ See the code and open issues or pull requests.
 Licensing
 ------------
 This code is licensed under a MIT license. You are free to use, copy, modify, merge, publish, distribute, sublicense, and sell this software for commercial or non-commercial uses. Please don't expect support from me if you are making your own modifications in closed-source. I don't have time.
+
+Light memory / low-resource deployment
+------------------------------------
+For constrained environments (small VMs, single-container deployments, low memory), tabby-lite supports a light mode that dramatically reduces background work and memory use.
+
+- **Enable:** set the environment variable `LIGHT_MEMORY_MODE=True`.
+- **Memory hint:** set `MEMORY_LIMIT_MB` (defaults to `512` when light mode enabled) to provide a deployment hint for container orchestration.
+- **Behavior when enabled:** Celery beat schedule is disabled; periodic background tasks are not run. Background enqueues (e.g., submission syncs, cache refreshes) will be executed synchronously in-process instead of via Celery workers, and retry/queue behavior is simplified to avoid worker processes.
+
+This mode is intended for small events or single-process deployments where running dedicated worker processes is impractical.

@@ -1,3 +1,10 @@
+"""Background tasks used by the `round` app.
+
+This module contains Celery tasks and synchronous variants used to
+deliver `PendingSubmission` objects to the Tabby API and to refresh
+cached values. Docstrings explain the purpose of each task.
+"""
+
 import logging
 import requests
 from celery import shared_task
@@ -9,6 +16,86 @@ import time
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
+
+
+def sync_submission_to_api_now(submission_id):
+    """Synchronous, in-process variant of sync_submission_to_api used when
+    `LIGHT_MEMORY_MODE` is enabled. Behaves similarly but does not rely on
+    Celery retry mechanics.
+    """
+    try:
+        from round.models import PendingSubmission
+        submission = PendingSubmission.objects.get(pk=submission_id)
+    except Exception:
+        logger.debug("Submission %s no longer exists", submission_id)
+        return
+
+    if submission.status == PendingSubmission.STATUS_COMPLETED:
+        return
+
+    try:
+        logger.info("Syncing submission %s to API (sync)", submission_id)
+        resp = requests.post(submission.endpoint, json=submission.payload, timeout=10, headers={"Authorization": f"Token {settings.TABBY_AUTHENTICATION_TOKEN}"})
+        status = resp.status_code
+        logger.info("Response from API for submission %s: %d", submission_id, status)
+        if status in (200, 201):
+            submission.status = PendingSubmission.STATUS_COMPLETED
+            submission.retry_count = getattr(submission, "retry_count", 0)
+            submission.save()
+            # Minimal followup handling (best-effort)
+            try:
+                followup = submission.payload.get("_followup") if isinstance(submission.payload, dict) else None
+                if followup:
+                    created = resp.json()
+                    team_url = created.get("url")
+                    if followup.get("create_speakers") and team_url:
+                        for speaker in followup.get("create_speakers"):
+                            speaker_payload = speaker.copy()
+                            speaker_payload["team"] = team_url
+                            speaker_payload["_meta"] = {"origin": "followup", "parent_submission_id": submission.id}
+                            speaker_payload["categories"] = []
+                            try:
+                                r = requests.post(f"{settings.TABBY_HOST}/api/v1/tournaments/{settings.TABBY_TOURNAMENT}/speakers", json=speaker_payload, headers={"Authorization": f"Token {settings.TABBY_AUTHENTICATION_TOKEN}"}, timeout=10)
+                                if r.status_code not in (200, 201):
+                                    PendingSubmission.objects.create(payload=speaker_payload, endpoint=f"{settings.TABBY_HOST}/api/v1/tournaments/{settings.TABBY_TOURNAMENT}/speakers", status=PendingSubmission.STATUS_PENDING)
+                            except Exception:
+                                PendingSubmission.objects.create(payload=speaker_payload, endpoint=f"{settings.TABBY_HOST}/api/v1/speakers", status=PendingSubmission.STATUS_PENDING)
+            except Exception:
+                logger.debug("No followup actions or followup failed for submission %s", submission.id)
+            return
+        if 400 <= status < 500:
+            submission.status = PendingSubmission.STATUS_FAILED
+            submission.error_log = resp.text
+            submission.save()
+            logger.exception("Submission %s failed", submission.id)
+            mail_admins(
+                "PendingSubmission failed",
+                f"Submission {submission.id} failed with {status}: {resp.text}",
+            )
+            try:
+                meta = submission.payload.get("_meta") if isinstance(submission.payload, dict) else None
+                if meta and meta.get("local_ballot_pairing_pk"):
+                    from round.models import BallotPairing
+                    try:
+                        bp = BallotPairing.objects.get(pk=meta.get("local_ballot_pairing_pk"))
+                        bp.completed = False
+                        bp.save()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return
+        # For 5xx and other unexpected status codes, leave as pending for later
+        submission.retry_count = getattr(submission, "retry_count", 0) + 1
+        submission.save()
+        return
+    except Exception as exc:
+        submission.status = PendingSubmission.STATUS_FAILED
+        submission.error_log = str(exc)
+        submission.save()
+        logger.exception("Unexpected error sending submission %s: %s", submission.id, exc)
+        mail_admins("PendingSubmission unexpected failure", f"Submission {submission.id} error: {exc}")
+
 
 
 @shared_task(bind=True, max_retries=5)
@@ -114,7 +201,11 @@ def sync_submission_to_api(self, submission_id):
 
 @shared_task
 def heartbeat():
-    """Ping the Tabby API host to keep it from hibernating."""
+    """Periodic lightweight ping to keep the Tabby host awake.
+
+    This is intended for hosting environments that may suspend idle
+    applications; it is safe to call and intentionally minimal.
+    """
     try:
         url = getattr(settings, "TABBY_HOST", None)
         if not url:
@@ -150,6 +241,8 @@ def refresh_cache(key, fetch_callable_path=None):
             stale_after = stored.get("stale_after")
 
         if not path:
+            # Nothing to refresh: either the value was created without a
+            # recorded fetch callable or the caller didn't supply a path.
             logger.debug("refresh_cache: no fetch callable available for %s", key)
             return
 
@@ -178,6 +271,53 @@ def refresh_cache(key, fetch_callable_path=None):
         logger.debug("refresh_cache top-level error for %s: %s", key, exc)
 
 
+def refresh_cache_now(key, fetch_callable_path=None):
+    """Synchronous variant of `refresh_cache` suitable for LIGHT_MEMORY_MODE.
+
+    Executes the fetch callable inline and writes to cache. This is used
+    in test or lightweight modes where Celery is not available.
+    """
+    try:
+        stored = None
+        try:
+            stored = cache.get(key)
+        except Exception as exc:
+            logger.debug("refresh_cache (sync): cache.get(%s) failed: %s", key, exc)
+
+        path = fetch_callable_path
+        stale_after = None
+        if not path and isinstance(stored, dict):
+            path = stored.get("fetch_callable")
+            stale_after = stored.get("stale_after")
+
+        if not path:
+            logger.debug("refresh_cache (sync): no fetch callable available for %s", key)
+            return
+
+        try:
+            module_name, func_name = path.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            func = getattr(module, func_name)
+        except Exception as exc:
+            logger.debug("refresh_cache (sync): failed to resolve %s: %s", path, exc)
+            return
+
+        try:
+            val = func()
+        except Exception as exc:
+            logger.debug("refresh_cache (sync): fetch function %s raised: %s", path, exc)
+            return
+
+        now = int(time.time())
+        wrapper = {"v": val, "ts": now, "fetch_callable": path, "stale_after": stale_after}
+        try:
+            cache.set(key, wrapper, timeout=None)
+        except Exception as exc:
+            logger.debug("refresh_cache (sync): cache.set(%s) failed: %s", key, exc)
+    except Exception as exc:
+        logger.debug("refresh_cache (sync) top-level error for %s: %s", key, exc)
+
+
 
 @shared_task
 def retry_pending_submissions(batch_size=100):
@@ -191,8 +331,15 @@ def retry_pending_submissions(batch_size=100):
         pending_qs = PendingSubmission.objects.filter(status=PendingSubmission.STATUS_PENDING).order_by("id")[:batch_size]
         for sub in pending_qs:
             try:
-                # Enqueue an attempt to send this submission
-                sync_submission_to_api.delay(sub.id)
+                # Enqueue or run synchronously depending on light mode
+                if getattr(settings, "LIGHT_MEMORY_MODE", False):
+                    try:
+                        sync_submission_to_api_now(sub.id)
+                    except Exception:
+                        logger.debug("Failed to run sync_submission_to_api synchronously for %s", sub.id)
+                else:
+                    # Enqueue an attempt to send this submission
+                    sync_submission_to_api.delay(sub.id)
             except Exception:
                 logger.debug("Failed to enqueue sync for PendingSubmission %s", sub.id)
     except Exception as exc:  # pragma: no cover

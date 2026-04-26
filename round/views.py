@@ -1,3 +1,10 @@
+"""Views for the `round` app.
+
+This module contains Django view handlers used by the Tabby-lite
+round management UI. Docstrings and small inline comments are
+provided to make the request/response flow easier to follow.
+"""
+
 import io
 
 from django.shortcuts import render, HttpResponse
@@ -21,13 +28,19 @@ logger = logging.getLogger(__name__)
 
 # Create your views here.
 def rounds_list(request):
+    """Render a list of rounds or the rounds index.
+
+    - On `POST`: fetch rounds, teams and tournament config and render
+      the list template.
+    - On `GET`: render the overview index page.
+    """
     if request.method == "POST":
-        rounds = get_all_rounds()  # Replace with actual function to fetch rounds
+        rounds = get_all_rounds()
         teams = get_all_teams()
         tournament = get_tournament()
         tournament_conf = get_tournament_conf()
         for team in teams:
-            # Replace institution URL with institution name
+            # Replace institution URL with institution name for template readability
             institution_name = get_institution(team.institution).name
             team.institution = institution_name
         return render(request, 'rounds/list.html', {'rounds': rounds, 'teams': teams, 'tournament': tournament, 'tournament_conf': tournament_conf})
@@ -35,20 +48,24 @@ def rounds_list(request):
 
 
 def rounds_detail(request, round_seq):
-    # Replace with actual function to fetch a single round
+    """Show details for a single round (draw, pairings, adjudicators).
+
+    - `round_seq` is the sequence number for the round to display.
+    - On `POST` the cached round draw is invalidated to force a refresh.
+    """
     round = get_round_by_id(round_seq)
-    # If post request, refresh cache
     if request.method == "POST":
+        # Allow a client to request cache invalidation
         cache.delete(f'tabby:round_draw:{round_seq}')
-    
+
     try:
         draw = get_round_draw(round_seq)
     except ValueError as e:
-        # Handle the error, e.g., by displaying an error message
+        # Draw not yet released — report to template
         return render(request, 'rounds/detail.html', {'round': round, 'error': str(e)})
 
     for pairing in draw:
-        # Get location
+        # Resolve venue and team/adjudicator references for template
         if pairing.venue:
             location = get_venue(pairing.venue)
             pairing.location = location
@@ -57,8 +74,7 @@ def rounds_detail(request, round_seq):
             team["team"] = team_name
         if pairing.adjudicators["chair"]:
             pairing.adjudicators = {"chair": get_adjudicator(pairing.adjudicators["chair"]), "panellists": [get_adjudicator(panellist) for panellist in pairing.adjudicators["panellists"]], "trainees": [get_adjudicator(trainee) for trainee in pairing.adjudicators["trainees"]]}
-            # Generate a ballot pairing
-            # If one doesn't already exist
+            # Ensure a local BallotPairing exists for optimistic ballot submission
             if not BallotPairing.objects.filter(round_seq=round_seq, pairing_seq=pairing.id).exists():
                 ballot_pairing = BallotPairing.objects.create(
                     round_seq=round_seq,
@@ -67,13 +83,17 @@ def rounds_detail(request, round_seq):
                 )
             else:
                 ballot_pairing = BallotPairing.objects.get(round_seq=round_seq, pairing_seq=pairing.id)
-                print(ballot_pairing.passphrase)
             pairing.ballot_pairing = ballot_pairing
     return render(request, 'rounds/detail.html', {'round': round, 'draw': draw})
 
 
 @login_required
 def draw_csv(request, round_seq):
+    """Produce a CSV download of the draw suitable for emailing teams.
+
+    The CSV contains one row per team (two rows per pairing, except for BYEs)
+    listing speaker email, team short name (with emoji) and side.
+    """
     try:
         draw = get_round_draw(round_seq)
     except ValueError as e:
@@ -113,6 +133,11 @@ def draw_csv(request, round_seq):
 
 @login_required
 def adj_draw_csv(request, round_seq):
+    """Produce a CSV of adjudicator assignments including passphrases.
+
+    The output is oriented at adjudicators: email and their assigned
+    teams/room and the confidential passphrase for the ballot.
+    """
     try:
         draw = get_round_draw(round_seq)
     except ValueError as e:
@@ -152,7 +177,7 @@ def adj_draw_csv(request, round_seq):
             "team2": f"{team2.emoji} {team2.short_name}" if team2 else "",
             "sideteam2": f"{sideteam2}",
             "venue": venue,
-            "passphrase": ballot_pairing.passphrase if sideteam2 is not "BYE" else ""
+            "passphrase": ballot_pairing.passphrase if sideteam2 != "BYE" else ""
         }
         pairings.append(pairing_dict)
     # Now use csv to put pairings to csv
@@ -169,8 +194,11 @@ def adj_draw_csv(request, round_seq):
 
 
 def registration(request):
-    """
-    Display a registration page.
+    """Handle team registration UI and enqueue team creation.
+
+    - On `POST` create an optimistic `PendingSubmission` and either
+        enqueue the worker or run synchronously in light-memory mode.
+    - On `GET` render the registration form with a generated team name.
     """
     if request.method == 'POST':
         # Handle form submission here
@@ -228,9 +256,16 @@ def registration(request):
         submission.payload = {**submission.payload, "_followup": followup}
         submission.save()
         try:
-            sync_submission_to_api.delay(submission.id)
+            if getattr(settings, "LIGHT_MEMORY_MODE", False):
+                from round.tasks import sync_submission_to_api_now
+                try:
+                    sync_submission_to_api_now(submission.id)
+                except Exception:
+                    logger.exception("Failed to run sync_submission_to_api synchronously for submission %s", submission.id)
+            else:
+                sync_submission_to_api.delay(submission.id)
         except Exception as exc:
-            logger.exception("Failed to enqueue sync_submission_to_api for submission %s", submission.id)
+            logger.exception("Failed to enqueue or run sync_submission_to_api for submission %s", submission.id)
 
         # Invalidate local teams cache so SWR will revalidate in background
         try:
@@ -246,6 +281,12 @@ def registration(request):
 
 
 def ballot(request, passphrase):
+    """Handle ballot display and submission for a given `passphrase`.
+
+    - On `GET` render the ballot form linked to a local `BallotPairing`.
+    - On `POST` validate the incoming JSON ballot, create a
+        `PendingSubmission` and enqueue it for background sync.
+    """
     try:
         ballot_pairing = BallotPairing.objects.get(passphrase=passphrase)
         # Now get round and pairing 
@@ -358,9 +399,16 @@ def ballot(request, passphrase):
         ballot_pairing.completed = True
         ballot_pairing.save()
         try:
-            sync_submission_to_api.delay(submission.id)
+            if getattr(settings, "LIGHT_MEMORY_MODE", False):
+                from round.tasks import sync_submission_to_api_now
+                try:
+                    sync_submission_to_api_now(submission.id)
+                except Exception:
+                    logger.exception("Failed to run sync_submission_to_api synchronously for ballot submission %s", submission.id)
+            else:
+                sync_submission_to_api.delay(submission.id)
         except Exception as exc:
-            logger.exception("Failed to enqueue sync_submission_to_api for ballot submission %s", submission.id)
+            logger.exception("Failed to enqueue or run sync_submission_to_api for ballot submission %s", submission.id)
         return HttpResponse(json.dumps({"success": True}))
         
     if ballot_pairing.completed:
@@ -370,4 +418,5 @@ def ballot(request, passphrase):
 
 @cache_page(3600)
 def empty_ballot(request):
+    """Cached view for an already-submitted or empty ballot page."""
     return render(request, 'rounds/empty_ballot.html')

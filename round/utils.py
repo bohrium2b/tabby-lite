@@ -1,3 +1,11 @@
+"""Utility helpers and API wrappers for the `round` app.
+
+This module provides lightweight client-side model classes and helper
+functions used by the views and background tasks to interact with the
+Tabby API. It intentionally keeps data as simple Python objects (not
+Django models) to make rendering and testing straightforward.
+"""
+
 from typing import TypedDict
 
 import requests
@@ -11,8 +19,10 @@ from round.cache_helpers import swr_get
 
 
 def load_wordlist():
-    """
-    Load round/eff_large_wordlist.txt.
+    """Load the EFF wordlist used by passphrase generation.
+
+    The wordlist file is expected at `<BASE_DIR>/round/eff_large_wordlist.txt`.
+    Returns a list of words (strings).
     """
     path = os.path.join(settings.BASE_DIR, 'round', 'eff_large_wordlist.txt')
     with open(path, "r") as f:
@@ -35,6 +45,11 @@ WORDLIST = load_wordlist()
 
 
 class Tournament:
+    """Lightweight representation of a tournament returned by the API.
+
+    Instances are simple containers for attributes returned from the
+    Tabby API and are used by views for rendering.
+    """
     def __init__(self, id, url, name, short_name, slug, active=False, _links=None, current_rounds=None, seq=None):
         self.id=id
         self.url=url
@@ -45,10 +60,12 @@ class Tournament:
 
 
 class RoundLinks(TypedDict):
+    """Typed dict describing link keys present on a Round resource."""
     pairing: str
     availabilities: str
 
 class Round:
+    """Container for round metadata returned by the Tabby API."""
     def __init__(self, id, url, starts_at, motions_released, _links, seq, completed, name, abbreviation, stage, draw_type, draw_status, silent, motions_status, weight, break_category=None, motions=None, feedback_weight=None, detail=None):
         self.id = id
         self.url = url
@@ -71,6 +88,7 @@ class Round:
 
 
 class Draw:
+    """Representation of a single pairing in a round draw."""
     def __init__(self, id, url, venue, teams, barcode, _links, sides_confirmed, bracket=None, room_rank=None, flags=None, importance=None, result_status=None, adjudicators=None):
         self.id = id
         self.url = url
@@ -88,6 +106,7 @@ class Draw:
 
 
 class Team:
+    """Representation of a competing team returned by the API."""
     def __init__(self, id, url, institution, break_categories, institution_conflicts, venue_constraints, answers, reference, short_reference, code_name, short_name, long_name, use_institution_prefix, seed, emoji, registration_status, speakers, detail=None):
         self.id = id
         self.url = url
@@ -109,6 +128,7 @@ class Team:
 
 
 class Venue:
+    """Simple container for venue information (rooms, display names)."""
     def __init__(self, id, url, display_name, barcode, name, priority, *args, **kwargs):
         self.id = id
         self.url = url
@@ -119,6 +139,7 @@ class Venue:
 
 
 class Adjudicator:
+    """Container for adjudicator information returned by the API."""
     def __init__(self, id, url, name, institution=None, institution_conflicts=None, team_conflicts=None, adjudicator_conflicts=None, venue_constraints=None, _links=None, barcode=None, answers=None, last_name=None, email=None, phone=None, anonymous=None, code_name=None, url_key=None, gender=None, pronoun=None, base_score=None, trainee=None, breaking=None, independent=None, adj_core=None, registration_status=None, *args, **kwargs):
         self.id = id
         self.url = url
@@ -148,6 +169,7 @@ class Adjudicator:
 
 
 class Institution:
+    """Container for institution metadata (name, code, allocations)."""
     def __init__(self, id, url, region=None, venue_constraints=None, teams=None, adjudicators=None, answers=None, coaches=None, teams_requested=None, teams_allocated=None, adjudicators_requested=None, adjudicators_allocated=None, name=None, code=None):
         self.id = id
         self.url = url
@@ -166,6 +188,7 @@ class Institution:
 
 
 class Motion:
+    """Representation of a motion (debate topic) returned by the API."""
     def __init__(self, id, url, text, reference, info_slide, info_slide_plain, seq):
         self.id = id
         self.url = url
@@ -177,6 +200,11 @@ class Motion:
 
 
 class Speech:
+    """A single speaker's result on a ballot sheet.
+
+    Attributes are intentionally minimal: `ghost` (bool), `score` (numeric)
+    and `speaker` (URL or object depending on context).
+    """
     def __init__(self, ghost, score, speaker):
         self.ghost = ghost
         self.score = score
@@ -188,6 +216,7 @@ class Speech:
 
 
 class ResultTeam:
+    """Container for one side's result within a ballot sheet."""
     def __init__(self, side, points, win, score, team, speeches: list[Speech]):
         self.side = side
         self.points = points
@@ -201,6 +230,7 @@ class ResultTeam:
 
 
 class Sheet:
+    """A ballot sheet consisting of two `ResultTeam` objects and an adjudicator."""
     def __init__(self, teams: list[ResultTeam], adjudicator: Adjudicator | None = None):
         self.teams = teams
         self.adjudicator = adjudicator
@@ -210,6 +240,7 @@ class Sheet:
 
 
 class Result:
+    """Top-level result container — a list of `Sheet` instances."""
     def __init__(self, sheets: list[Sheet]):
         self.sheets = sheets
     def __str__(self):
@@ -217,6 +248,7 @@ class Result:
 
 
 class Ballot:
+    """Representation of a submitted ballot returned by the API."""
     def __init__(self, id, result: Result, motion=None, url=None, version=None, submitter_type=None, confirmed=None, private_url=None, confirm_timestamp=None, ip_address=None, discarded=None, single_adj=None, forfeit=None, submitter=None, confirmer=None, participant_submitter=None, vetos=None, timestamp=None):
         self.id = id
         self.result = result

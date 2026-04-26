@@ -1,3 +1,11 @@
+"""Cache helper utilities implementing a stale-while-revalidate pattern.
+
+The `swr_get` function wraps Django's cache to return cached values
+immediately while triggering background refreshes when values are stale.
+This module also provides a small Redis-backed locking helper used to
+ensure only one background refresher runs for a particular key.
+"""
+
 import logging
 from django.core.cache import cache
 from django.conf import settings
@@ -13,6 +21,11 @@ except Exception:
 
 
 def _acquire_lock(key, ttl=300):
+    """Attempt to acquire a Redis lock for `key`.
+
+    Returns a lock object when acquired, or `None` if Redis is not
+    configured or the lock could not be obtained.
+    """
     if not get_redis_connection or not getattr(settings, "DJANGO_USE_REDIS", False):
         return None
     conn = get_redis_connection("default")
@@ -22,6 +35,11 @@ def _acquire_lock(key, ttl=300):
 
 
 def _release_lock(lock):
+    """Release a previously-acquired Redis lock, ignoring errors.
+
+    The function is defensive and will silently ignore release errors
+    because it is used in best-effort background refresh paths.
+    """
     try:
         if lock:
             lock.release()
@@ -57,7 +75,14 @@ def swr_get(key, fetch_func=None, lock_ttl=300, cache_timeout=None, stale_after=
                     if lock:
                         from round.tasks import refresh_cache
                         try:
-                            refresh_cache.delay(key)
+                            if getattr(settings, "LIGHT_MEMORY_MODE", False):
+                                from round.tasks import refresh_cache_now
+                                try:
+                                    refresh_cache_now(key)
+                                except Exception:
+                                    logger.debug("Failed to run refresh_cache synchronously for %s", key)
+                            else:
+                                refresh_cache.delay(key)
                         except Exception:
                             logger.debug("Failed to enqueue refresh_cache for %s", key)
                 finally:
@@ -76,7 +101,14 @@ def swr_get(key, fetch_func=None, lock_ttl=300, cache_timeout=None, stale_after=
                             path = f"{fetch_func.__module__}.{fetch_func.__name__}"
                         except Exception:
                             path = None
-                        refresh_cache.delay(key, path)
+                        if getattr(settings, "LIGHT_MEMORY_MODE", False):
+                            from round.tasks import refresh_cache_now
+                            try:
+                                refresh_cache_now(key, path)
+                            except Exception:
+                                logger.debug("Failed to run refresh_cache synchronously for legacy key %s", key)
+                        else:
+                            refresh_cache.delay(key, path)
                     except Exception:
                         logger.debug("Failed to enqueue refresh_cache for legacy key %s", key)
             finally:
