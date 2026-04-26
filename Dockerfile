@@ -56,6 +56,10 @@ RUN apt-get update -y \
     && chmod +x /etc/service/celery-beat/run \
     && printf '%s\n' '#!/bin/sh' 'exec cron -f' > /etc/service/cron/run \
     && chmod +x /etc/service/cron/run
+    # Ensure nginx has an explicit runit service that launches nginx in foreground
+    RUN mkdir -p /etc/service/nginx \
+    && printf '%s\n' '#!/bin/sh' 'exec /usr/sbin/nginx -g "daemon off;"' > /etc/service/nginx/run \
+    && chmod +x /etc/service/nginx/run
     
 EXPOSE 80
 
