@@ -254,4 +254,4 @@ LOGGING = {
     },
 }
 
-CSRF_TRUSTED_ORIGINS = ["https://bohrium2b.hackclub.app", "https://tabby-lite-production.up.railway.app"]
+CSRF_TRUSTED_ORIGINS = ["https://bohrium2b.hackclub.app", "https://tabby-lite-production.up.railway.app", "http://localhost:3000", os.environ.get("CSRF_TRUSTED_ORIGINS")]
