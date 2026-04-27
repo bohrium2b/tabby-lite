@@ -61,7 +61,7 @@ RUN mkdir -p /etc/service/nginx \
     && chmod +x /etc/service/nginx/run
 
 # Pre-start commands
-RUN mkdir -p /etc/my_init.d \ 
+RUN mkdir -p /etc/my_init.d \
     && printf '%s\n' '#!/bin/sh' 'echo "Running pre-start commands..."' > /etc/my_init.d/00-pre-start.sh \
     && chmod +x /etc/my_init.d/00-pre-start.sh
 # If LIGHT_MEMORY_MODE=True, create "down" files for celery services before runit starts
@@ -86,7 +86,7 @@ fi
 
 exit 0
 SH
-        && chmod +x /etc/my_init.d/05-configure-nginx-port.sh
+RUN  chmod +x /etc/my_init.d/05-configure-nginx-port.sh
 # Database migration pre-start task
 RUN printf '%s\n' '#!/bin/sh' 'echo "Running database migration..." && /opt/venv/bin/python manage.py migrate' > /etc/my_init.d/01-migrate.sh \
     && chmod +x /etc/my_init.d/01-migrate.sh
