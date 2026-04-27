@@ -57,7 +57,7 @@ RUN apt-get update -y \
     && chmod +x /etc/service/celery-beat/run
 # Ensure nginx has an explicit runit service that launches nginx in foreground
 RUN mkdir -p /etc/service/nginxng \
-        && cat > /etc/service/nginxng/run <<'SH' \
+        && cat > /etc/service/nginxng/run <<'SH'
 #!/bin/sh
 echo "Starting Nginx..."
 # If the main nginx config already contains a 'daemon' directive, avoid passing -g to prevent duplicate directive errors.
