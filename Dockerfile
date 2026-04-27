@@ -69,8 +69,24 @@ RUN printf '%s\n' '#!/bin/sh' 'if [ "${LIGHT_MEMORY_MODE}" = "True" ]; then' '  
     && chmod +x /etc/my_init.d/00-disable-celery-if-light-memory.sh
 
 # Configure nginx at container start to bind to Railway's $PORT (if provided)
-RUN printf '%s\n' '#!/bin/sh' 'set -e' 'echo "Configuring nginx for runtime port $PORT"' '\n# Replace listen 80 with the PORT env if provided' 'if [ -n "\"$PORT\"" ]; then' '  sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/sites-enabled/default || true' 'fi' '\n# Ensure passenger_python is set in config (fallback if missing)' 'grep -q "passenger_python" /etc/nginx/sites-enabled/default || sed -i \'/passenger_startup_file/a\\    passenger_python /opt/venv/bin/python;\' /etc/nginx/sites-enabled/default || true' 'exit 0' > /etc/my_init.d/05-configure-nginx-port.sh \
-    && chmod +x /etc/my_init.d/05-configure-nginx-port.sh
+RUN cat > /etc/my_init.d/05-configure-nginx-port.sh <<'SH'
+#!/bin/sh
+set -e
+echo "Configuring nginx for runtime port $PORT"
+
+# Replace listen 80 with the PORT env if provided
+if [ -n "$PORT" ]; then
+    sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/sites-enabled/default || true
+fi
+
+# Ensure passenger_python is set in config (fallback if missing)
+if ! grep -q "passenger_python" /etc/nginx/sites-enabled/default; then
+    sed -i '/passenger_startup_file/a\    passenger_python /opt/venv/bin/python;' /etc/nginx/sites-enabled/default || true
+fi
+
+exit 0
+SH
+        && chmod +x /etc/my_init.d/05-configure-nginx-port.sh
 # Database migration pre-start task
 RUN printf '%s\n' '#!/bin/sh' 'echo "Running database migration..." && /opt/venv/bin/python manage.py migrate' > /etc/my_init.d/01-migrate.sh \
     && chmod +x /etc/my_init.d/01-migrate.sh
