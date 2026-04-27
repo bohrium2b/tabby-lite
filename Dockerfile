@@ -53,16 +53,27 @@ RUN apt-get update -y \
     && printf '%s\n' '#!/bin/sh' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" worker -c 1 --loglevel=INFO' > /etc/service/celery-worker/run \
     && chmod +x /etc/service/celery-worker/run \
     && printf '%s\n' '#!/bin/sh' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" beat --loglevel=INFO' > /etc/service/celery-beat/run \
-    && chmod +x /etc/service/celery-beat/run \
-    && printf '%s\n' '#!/bin/sh' 'exec cron -f' > /etc/service/cron/run \
-    && chmod +x /etc/service/cron/run
-    # Ensure nginx has an explicit runit service that launches nginx in foreground
-    RUN mkdir -p /etc/service/nginx \
+    && chmod +x /etc/service/celery-beat/run 
+# Ensure nginx has an explicit runit service that launches nginx in foreground
+RUN mkdir -p /etc/service/nginx \
     && printf '%s\n' '#!/bin/sh' 'exec /usr/sbin/nginx -g "daemon off;"' > /etc/service/nginx/run \
     && chmod +x /etc/service/nginx/run
-    
+
+# Pre-start commands
+RUN mkdir -p /etc/my_init.d \ 
+    && printf '%s\n' '#!/bin/sh' 'echo "Running pre-start commands..."' > /etc/my_init.d/pre-start.sh \
+    && chmod +x /etc/my_init.d/pre-start.sh
+# Database migration pre-start task
+RUN printf '%s\n' '#!/bin/sh' 'echo "Running database migration..." && /opt/venv/bin/python manage.py migrate' > /etc/my_init.d/migrate.sh \
+    && chmod +x /etc/my_init.d/migrate.sh
+# Static files pre-start task
+RUN printf '%s\n' '#!/bin/sh' 'echo "Running static files collection..." && /opt/venv/bin/python manage.py collectstatic --noinput || true' > /etc/my_init.d/collectstatic.sh \
+    && chmod +x /etc/my_init.d/collectstatic.sh
+
+
 EXPOSE 80
 
 # Start container with Phusion's init which will run Nginx + Passenger
+
 CMD ["/sbin/my_init"]
 
