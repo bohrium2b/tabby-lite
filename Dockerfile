@@ -57,7 +57,7 @@ RUN apt-get update -y \
     && chmod +x /etc/service/celery-beat/run
 # Ensure nginx has an explicit runit service that launches nginx in foreground
 RUN mkdir -p /etc/service/nginx \
-    && printf '%s\n' '#!/bin/sh' 'exec /usr/sbin/nginx -g "daemon off;"' > /etc/service/nginx/run \
+    && printf '%s\n' '#!/bin/sh' 'echo "Starting Nginx..." && exec /usr/sbin/nginx -g "daemon off;"' > /etc/service/nginx/run \
     && chmod +x /etc/service/nginx/run
 
 # Pre-start commands
@@ -67,6 +67,10 @@ RUN mkdir -p /etc/my_init.d \
 # If LIGHT_MEMORY_MODE=True, create "down" files for celery services before runit starts
 RUN printf '%s\n' '#!/bin/sh' 'if [ "${LIGHT_MEMORY_MODE}" = "True" ]; then' '  echo "LIGHT_MEMORY_MODE=True: disabling celery services"' '  touch /etc/service/celery-worker/down' '  touch /etc/service/celery-beat/down' 'fi' > /etc/my_init.d/00-disable-celery-if-light-memory.sh \
     && chmod +x /etc/my_init.d/00-disable-celery-if-light-memory.sh
+
+# Configure nginx at container start to bind to Railway's $PORT (if provided)
+RUN printf '%s\n' '#!/bin/sh' 'set -e' 'echo "Configuring nginx for runtime port $PORT"' '\n# Replace listen 80 with the PORT env if provided' 'if [ -n "\"$PORT\"" ]; then' '  sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/sites-enabled/default || true' 'fi' '\n# Ensure passenger_python is set in config (fallback if missing)' 'grep -q "passenger_python" /etc/nginx/sites-enabled/default || sed -i \'/passenger_startup_file/a\\    passenger_python /opt/venv/bin/python;\' /etc/nginx/sites-enabled/default || true' 'exit 0' > /etc/my_init.d/05-configure-nginx-port.sh \
+    && chmod +x /etc/my_init.d/05-configure-nginx-port.sh
 # Database migration pre-start task
 RUN printf '%s\n' '#!/bin/sh' 'echo "Running database migration..." && /opt/venv/bin/python manage.py migrate' > /etc/my_init.d/01-migrate.sh \
     && chmod +x /etc/my_init.d/01-migrate.sh
