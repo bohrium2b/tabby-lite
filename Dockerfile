@@ -53,7 +53,7 @@ RUN apt-get update -y \
     && printf '%s\n' '#!/bin/sh' 'if [ "${LIGHT_MEMORY_MODE}" = "True" ]; then echo "LIGHT_MEMORY_MODE=True, not starting celery worker"; exit 0; fi' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" worker -c 1 --loglevel=INFO' > /etc/service/celery-worker/run \
     && chmod +x /etc/service/celery-worker/run \
     && printf '%s\n' '#!/bin/sh' 'if [ "${LIGHT_MEMORY_MODE}" = "True" ]; then echo "LIGHT_MEMORY_MODE=True, not starting celery beat"; exit 0; fi' 'exec /opt/venv/bin/celery -A "${CELERY_APP}" beat --loglevel=INFO' > /etc/service/celery-beat/run \
-    && chmod +x /etc/service/celery-beat/run \
+    && chmod +x /etc/service/celery-beat/run
 # Ensure nginx has an explicit runit service that launches nginx in foreground
 RUN mkdir -p /etc/service/nginx \
     && printf '%s\n' '#!/bin/sh' 'exec /usr/sbin/nginx -g "daemon off;"' > /etc/service/nginx/run \
