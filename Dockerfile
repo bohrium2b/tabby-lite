@@ -42,7 +42,7 @@ COPY deploy/nginx.passenger.conf /etc/nginx/sites-enabled/default
 # Enable all write on the logs directory
 RUN chmod 777 -R /home/app/web/logs
 # Enable all write on the cache directory
-RUN mkdir /home/app/web/cache
+RUN mkdir -p /home/app/web/cache
 RUN chmod 777 -R /home/app/web/cache
 # Enable nginx
 RUN rm -f /etc/service/nginx/down
@@ -57,8 +57,19 @@ RUN apt-get update -y \
     && chmod +x /etc/service/celery-beat/run
 # Ensure nginx has an explicit runit service that launches nginx in foreground
 RUN mkdir -p /etc/service/nginxng \
-    && printf '%s\n' '#!/bin/sh' 'echo "Starting Nginx..." && exec /usr/sbin/nginx -g "daemon off;"' > /etc/service/nginxng/run \
-    && chmod +x /etc/service/nginxng/run
+        && cat > /etc/service/nginxng/run <<'SH' \
+#!/bin/sh
+echo "Starting Nginx..."
+# If the main nginx config already contains a 'daemon' directive, avoid passing -g to prevent duplicate directive errors.
+if grep -Eiq '^\s*daemon\b' /etc/nginx/nginx.conf 2>/dev/null; then
+    echo "Detected 'daemon' in nginx.conf; starting nginx without -g"
+    exec /usr/sbin/nginx
+else
+    exec /usr/sbin/nginx -g 'daemon off;'
+fi
+SH
+
+RUN chmod +x /etc/service/nginxng/run
 
 # Pre-start commands
 RUN mkdir -p /etc/my_init.d \
