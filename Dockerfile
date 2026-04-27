@@ -46,6 +46,7 @@ RUN mkdir /home/app/web/cache
 RUN chmod 777 -R /home/app/web/cache
 # Enable nginx
 RUN rm -f /etc/service/nginx/down
+# Small services
 RUN apt-get update -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cron \
     && rm -rf /var/lib/apt/lists/* \
@@ -63,6 +64,9 @@ RUN mkdir -p /etc/service/nginx \
 RUN mkdir -p /etc/my_init.d \ 
     && printf '%s\n' '#!/bin/sh' 'echo "Running pre-start commands..."' > /etc/my_init.d/00-pre-start.sh \
     && chmod +x /etc/my_init.d/00-pre-start.sh
+# If LIGHT_MEMORY_MODE=True, create "down" files for celery services before runit starts
+RUN printf '%s\n' '#!/bin/sh' 'if [ "${LIGHT_MEMORY_MODE}" = "True" ]; then' '  echo "LIGHT_MEMORY_MODE=True: disabling celery services"' '  touch /etc/service/celery-worker/down' '  touch /etc/service/celery-beat/down' 'fi' > /etc/my_init.d/00-disable-celery-if-light-memory.sh \
+    && chmod +x /etc/my_init.d/00-disable-celery-if-light-memory.sh
 # Database migration pre-start task
 RUN printf '%s\n' '#!/bin/sh' 'echo "Running database migration..." && /opt/venv/bin/python manage.py migrate' > /etc/my_init.d/01-migrate.sh \
     && chmod +x /etc/my_init.d/01-migrate.sh
