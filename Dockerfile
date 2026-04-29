@@ -59,6 +59,12 @@ RUN apt-get update -y \
 RUN mkdir -p /etc/service/nginxng \
         && cat > /etc/service/nginxng/run <<'SH'
 #!/bin/sh
+set -e
+
+if pgrep -x nginx >/dev/null 2>&1; then
+    echo "Nginx is already running; not starting another instance."
+    exec sleep infinity
+fi
 echo "Starting Nginx..."
 # If the main nginx config already contains a 'daemon' directive, avoid passing -g to prevent duplicate directive errors.
 if grep -Eiq '^\s*daemon\b' /etc/nginx/nginx.conf 2>/dev/null; then
