@@ -111,8 +111,67 @@ RUN printf '%s\n' '#!/bin/sh' 'echo "Running database migration..." && /opt/venv
 RUN printf '%s\n' '#!/bin/sh' 'echo "Running static files collection..." && /opt/venv/bin/python manage.py collectstatic --noinput || true' > /etc/my_init.d/02-collectstatic.sh \
     && chmod +x /etc/my_init.d/02-collectstatic.sh
 
-# Delete /etc/my_init.d/10_syslog-ng.init
-RUN rm -rf /etc/my_init.d/10_syslog-ng.init
+# Overwrite /etc/my_init.d/10_syslog-ng.init with a permission-tolerant script
+RUN cat > /etc/my_init.d/10_syslog-ng.init <<'SH'
+#!/bin/bash
+set -em
+
+# If /dev/log is either a named pipe or it was placed there accidentally,
+# e.g. because of the issue documented at https://github.com/phusion/baseimage-docker/pull/25,
+# then we remove it.
+if [ ! -S /dev/log ]; then rm -f /dev/log; fi
+if [ ! -S /var/lib/syslog-ng/syslog-ng.ctl ]; then rm -f /var/lib/syslog-ng/syslog-ng.ctl; fi
+
+# determine output mode on /dev/stdout because of the issue documented at https://github.com/phusion/baseimage-docker/issues/468
+if [ -p /dev/stdout ]; then
+    sed -i 's/##SYSLOG_OUTPUT_MODE_DEV_STDOUT##/pipe/' /etc/syslog-ng/syslog-ng.conf
+else
+    sed -i 's/##SYSLOG_OUTPUT_MODE_DEV_STDOUT##/file/' /etc/syslog-ng/syslog-ng.conf
+fi
+
+# If /var/log is writable by another user logrotate will fail
+# Only attempt to change ownership if running as root, or if chown is permitted.
+if [ "$(id -u)" -eq 0 ]; then
+    /bin/chown root:root /var/log
+    /bin/chmod 0755 /var/log
+else
+    if /bin/chown root:root /var/log 2>/dev/null; then
+        /bin/chmod 0755 /var/log 2>/dev/null || true
+    else
+        echo "Skipping chown/chmod on /var/log: insufficient permissions" >&2
+    fi
+fi
+
+PIDFILE="/var/run/syslog-ng.pid"
+SYSLOGNG_OPTS=""
+
+[ -r /etc/default/syslog-ng ] && . /etc/default/syslog-ng
+
+syslogng_wait() {
+        if [ "$2" -ne 0 ]; then
+                return 1
+        fi
+
+        RET=1
+        for i in $(seq 1 30); do
+                status=0
+                syslog-ng-ctl stats >/dev/null 2>&1 || status=$?
+                if [ "$status" != "$1" ]; then
+                        RET=0
+                        break
+                fi
+                sleep 1s
+        done
+        return $RET
+}
+
+/usr/sbin/syslog-ng --pidfile "$PIDFILE" -F $SYSLOGNG_OPTS &
+syslogng_wait 1 $?
+SH
+RUN chmod +x /etc/my_init.d/10_syslog-ng.init
+
+# Patch /etc/my_init.d/10_syslog-ng.init to check if user is root, or chown has permissions
+
 
 EXPOSE 80
 
