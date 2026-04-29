@@ -390,33 +390,22 @@
             warningElement.innerHTML = `<strong>Warning:</strong> ${speaker2Name} is speaking twice in this debate. The ballot cannot be submitted online. Please contact the tournament director.`;
             // Disable the submit button
             if (submitBallotBtn) submitBallotBtn.disabled = true;
-          } else {
-            warningElement.style.display = "none";
-            if (submitBallotBtn) submitBallotBtn.disabled = false;
-          }
-
-          if (
-            replyName && 
-            replyName === speaker3Name &&
-            speaker3Name !== "Select a speaker"
+          } else if (
+            speaker1Name &&
+            speaker1Name === replyName &&
+            speaker1Name !== "Select a speaker"
           ) {
             warningElement.style.display = "block";
-            warningElement.innerHTML = `<strong>Warning:</strong> ${replyName} cannot be the third speaker and the reply speaker.`;
+            warningElement.innerHTML = `<strong>Warning:</strong> ${speaker1Name} cannot be the first speaker and the reply speaker.`;
             // Disable the submit button
             if (submitBallotBtn) submitBallotBtn.disabled = true;
-          } else {
-            warningElement.style.display = "none";
-            if (submitBallotBtn) submitBallotBtn.disabled = false;
-          }
-
-          if (
-            replyName &&
-            replyName !== speaker1Name &&
-            replyName !== speaker2Name &&
-            replyName !== "Select a speaker"
+          } else if (
+            speaker2Name &&
+            speaker2Name === replyName &&
+            speaker2Name !== "Select a speaker"
           ) {
             warningElement.style.display = "block";
-            warningElement.innerHTML = `<strong>Warning:</strong> ${replyName} is not a valid reply speaker.`;
+            warningElement.innerHTML = `<strong>Warning:</strong> ${speaker2Name} cannot be the second speaker and the reply speaker.`;
             // Disable the submit button
             if (submitBallotBtn) submitBallotBtn.disabled = true;
           } else {
