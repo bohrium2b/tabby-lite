@@ -7,7 +7,6 @@
 
 FROM phusion/passenger-full:latest
 
-USER root
 ENV HOME=/root
 WORKDIR /home/app/web
 
@@ -118,6 +117,5 @@ RUN rm -rf /etc/my_init.d/10_syslog-ng.init
 EXPOSE 80
 
 # Start container with Phusion's init which will run Nginx + Passenger
-USER app
 CMD ["/sbin/my_init"]
 
