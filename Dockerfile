@@ -113,7 +113,7 @@ RUN printf '%s\n' '#!/bin/sh' 'echo "Running static files collection..." && /opt
     && chmod +x /etc/my_init.d/02-collectstatic.sh
 
 # Delete /etc/my_init.d/10_syslog-ng.init
-RUN rm /etc/my_init.d/10_syslog-ng.init
+RUN rm -rf /etc/my_init.d/10_syslog-ng.init
 
 EXPOSE 80
 
