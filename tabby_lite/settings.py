@@ -15,6 +15,9 @@ import ssl
 from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
+from urllib.parse import urlparse
+import logging
+import logging
 
 load_dotenv()
 
@@ -265,4 +268,23 @@ LOGGING = {
     },
 }
 
-CSRF_TRUSTED_ORIGINS = ["https://bohrium2b.hackclub.app", "https://tabby-lite-production.up.railway.app", "http://localhost:3000"]
+def _parse_trusted_origins():
+    """Parse and validate CSRF_TRUSTED_ORIGINS from environment variable."""
+    origins_str = os.environ.get("CSRF_TRUSTED_ORIGINS", "https://bohrium2b.hackclub.app,https://tabby-lite-production.up.railway.app,http://localhost:3000")
+    origins = [origin.strip() for origin in origins_str.split(",")]
+    
+    # Validate each origin is a valid URI
+    validated_origins = []
+    for origin in origins:
+        try:
+            result = urlparse(origin)
+            if result.scheme and result.netloc:
+                validated_origins.append(origin)
+            else:
+                logging.warning(f"Invalid CSRF origin URI skipped: {origin}")
+        except Exception as e:
+            logging.warning(f"Error parsing CSRF origin '{origin}': {e}")
+    
+    return validated_origins
+
+CSRF_TRUSTED_ORIGINS = _parse_trusted_origins()

@@ -166,7 +166,16 @@ syslogng_wait() {
 }
 
 /usr/sbin/syslog-ng --pidfile "$PIDFILE" -F $SYSLOGNG_OPTS &
-syslogng_wait 1 $?
+        # Try to start syslog-ng but do not fail the entire container if it cannot start.
+        /usr/sbin/syslog-ng --pidfile "$PIDFILE" -F $SYSLOGNG_OPTS >/dev/null 2>&1 &
+        sleep 0.5
+        PID=$!
+        if ! kill -0 "$PID" 2>/dev/null; then
+            echo "syslog-ng failed to start; continuing without syslog-ng" >&2
+            exit 0
+        fi
+        # Optionally wait for proper initialization but ignore failures
+        syslogng_wait 1 0 || true
 SH
 RUN chmod +x /etc/my_init.d/10_syslog-ng.init
 
