@@ -156,7 +156,7 @@ TABBY_AUTHENTICATION_TOKEN = os.getenv("TABBY_AUTHENTICATION_TOKEN")  # Get auth
 # the upstream API and will use an alternate tournament/prefix when
 # provided via `DEMO_DB_PREFIX` so demo data is isolated.
 DEMO_MODE = os.environ.get("DEMO_MODE", "False") == "True"
-DB_PREFIX = os.environ.get("DEMO_DB_PREFIX").strip()  # Optional prefix for demo mode to isolate data (e.g., "demo_")
+DB_PREFIX = os.environ.get("DEMO_DB_PREFIX", "").strip()  # Optional prefix for demo mode to isolate data (e.g., "demo_")
 
 CACHES = {
     "default": {
