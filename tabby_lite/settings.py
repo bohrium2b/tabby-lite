@@ -39,6 +39,7 @@ LOGIN_REDIRECT_URL = '/account/profile/'
 # Application definition
 
 INSTALLED_APPS = [
+    "model_prefix",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -56,6 +57,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Demo mode middleware that grants admin-like attributes to authenticated
+    # users for UI purposes when `DEMO_MODE=True`.
+    "account.middleware.DemoModeMiddleware",
     "account.middleware.EnforceOnboardingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -146,6 +150,13 @@ TABBY_HOST = os.environ.get("TABBY_HOST", "https://mactabby26.onrender.com")
 TABBY_TOURNAMENT = os.environ.get("TABBY_TOURNAMENT", "Macleans2026")
 TABBY_ROOT = TABBY_HOST + "/api/v1/tournaments/" + TABBY_TOURNAMENT + ""
 TABBY_AUTHENTICATION_TOKEN = os.getenv("TABBY_AUTHENTICATION_TOKEN")  # Get authentication token from Env
+
+# Demo mode: opt-in environment-driven behaviour for safe demos.
+# When `DEMO_MODE=True` the application will avoid sending changes to
+# the upstream API and will use an alternate tournament/prefix when
+# provided via `DEMO_DB_PREFIX` so demo data is isolated.
+DEMO_MODE = os.environ.get("DEMO_MODE", "False") == "True"
+DB_PREFIX = os.environ.get("DEMO_DB_PREFIX").strip()  # Optional prefix for demo mode to isolate data (e.g., "demo_")
 
 CACHES = {
     "default": {
@@ -254,4 +265,4 @@ LOGGING = {
     },
 }
 
-CSRF_TRUSTED_ORIGINS = ["https://bohrium2b.hackclub.app", "https://tabby-lite-production.up.railway.app", "http://localhost:3000", os.environ.get("CSRF_TRUSTED_ORIGINS", None)]
+CSRF_TRUSTED_ORIGINS = ["https://bohrium2b.hackclub.app", "https://tabby-lite-production.up.railway.app", "http://localhost:3000"]

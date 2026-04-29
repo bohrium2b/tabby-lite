@@ -391,21 +391,22 @@
             // Disable the submit button
             if (submitBallotBtn) submitBallotBtn.disabled = true;
           } else if (
-            speaker1Name &&
-            speaker1Name === replyName &&
-            speaker1Name !== "Select a speaker"
+            replyName != speaker1Name &&
+            replyName != speaker2Name &&
+            replyName != speaker3Name &&
+            replyName !== "Select a speaker"
           ) {
             warningElement.style.display = "block";
-            warningElement.innerHTML = `<strong>Warning:</strong> ${speaker1Name} cannot be the first speaker and the reply speaker.`;
+            warningElement.innerHTML = `<strong>Warning:</strong> ${replyName} must speak at least once in the substantive portion of the debate.`;
             // Disable the submit button
             if (submitBallotBtn) submitBallotBtn.disabled = true;
           } else if (
-            speaker2Name &&
-            speaker2Name === replyName &&
-            speaker2Name !== "Select a speaker"
+            speaker3Name &&
+            speaker3Name === replyName &&
+            speaker3Name !== "Select a speaker"
           ) {
             warningElement.style.display = "block";
-            warningElement.innerHTML = `<strong>Warning:</strong> ${speaker2Name} cannot be the second speaker and the reply speaker.`;
+            warningElement.innerHTML = `<strong>Warning:</strong> ${speaker2Name} cannot be the third speaker and the reply speaker.`;
             // Disable the submit button
             if (submitBallotBtn) submitBallotBtn.disabled = true;
           } else {

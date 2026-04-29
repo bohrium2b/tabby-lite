@@ -368,6 +368,18 @@ argon2 = ["argon2-cffi (>=23.1.0)"]
 bcrypt = ["bcrypt (>=4.1.1)"]
 
 [[package]]
+name = "django-model-prefix"
+version = "1.1.0"
+description = "A django module that allows to configure a global or model based database table prefix"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "django_model_prefix-1.1.0-py3-none-any.whl", hash = "sha256:daf741524803a5c02486d6efc3055adfee6cda60d2fe6430de817afe467938ad"},
+    {file = "django_model_prefix-1.1.0.tar.gz", hash = "sha256:16fe83c26bafa4d3ef7cb403aae33a104f8490bdf67853e0f9e6e7b4e358fe58"},
+]
+
+[[package]]
 name = "django-redis"
 version = "6.0.0"
 description = "Full featured redis cache backend for Django."
@@ -912,4 +924,4 @@ brotli = ["brotli"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "df4f8ea8ea3dd78c6f64b1795e9063a7dd585ecc10ae7057f78472566c896733"
+content-hash = "fe833d464ce6203651ea6636fadbd093efd8506d70663402afa2fd6e8c32720a"

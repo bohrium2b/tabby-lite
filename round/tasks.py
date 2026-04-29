@@ -33,6 +33,19 @@ def sync_submission_to_api_now(submission_id):
     if submission.status == PendingSubmission.STATUS_COMPLETED:
         return
 
+    # If demo mode is enabled, do not send anything upstream — mark as
+    # completed locally so the UI reflects the change but no external
+    # API calls are made.
+    try:
+        if getattr(settings, "DEMO_MODE", False):
+            submission.status = PendingSubmission.STATUS_COMPLETED
+            submission.retry_count = getattr(submission, "retry_count", 0)
+            submission.save()
+            return
+    except Exception:
+        # Fall through to normal behaviour if settings are unavailable
+        pass
+
     try:
         logger.info("Syncing submission %s to API (sync)", submission_id)
         resp = requests.post(submission.endpoint, json=submission.payload, timeout=10, headers={"Authorization": f"Token {settings.TABBY_AUTHENTICATION_TOKEN}"})
@@ -109,6 +122,16 @@ def sync_submission_to_api(self, submission_id):
 
     if submission.status == PendingSubmission.STATUS_COMPLETED:
         return
+
+    # Demo mode: mark as completed locally and skip network calls.
+    try:
+        if getattr(settings, "DEMO_MODE", False):
+            submission.status = PendingSubmission.STATUS_COMPLETED
+            submission.retry_count = getattr(self.request, "retries", 0) if hasattr(self, "request") else 0
+            submission.save()
+            return
+    except Exception:
+        pass
 
     try:
         # Log submission
@@ -214,6 +237,29 @@ def heartbeat():
         requests.get(url, timeout=5)
     except Exception as exc:  # pragma: no cover - retry is handled by beat schedule
         logger.debug("Heartbeat ping failed: %s", exc)
+
+
+@shared_task
+def demo_hourly_reset():
+    """Reset demo state periodically when `DEMO_MODE` is enabled.
+
+    - Marks all local `BallotPairing.completed` as False
+    - Resets `PendingSubmission` status/retry counters so the demo looks "fresh"
+    """
+    try:
+        if not getattr(settings, "DEMO_MODE", False):
+            return
+    except Exception:
+        return
+
+    try:
+        from round.models import BallotPairing, PendingSubmission
+        # Reset ballots
+        BallotPairing.objects.update(completed=False)
+        # Reset pending submissions metadata so the demo can re-run them locally
+        PendingSubmission.objects.filter(status=PendingSubmission.STATUS_COMPLETED).update(status=PendingSubmission.STATUS_PENDING, retry_count=0, error_log="reset by demo mode")
+    except Exception:
+        logger.exception("Failed to perform demo hourly reset")
 
 
 @shared_task
