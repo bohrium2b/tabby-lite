@@ -35,11 +35,12 @@
                 </div>
 
                 {% if user.is_authenticated %}
-                <div class="flex items-center gap-4">
                     <a href="/account/logout" class="block no-underline">
                         <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-3 pr-4 shadow-sm min-w-[220px] hover:opacity-95">
                             <div class="flex items-center gap-3">
-                                <div class="w-11 h-11 rounded-full bg-primary-container text-white flex items-center justify-center text-sm font-extrabold tracking-wide">{{ user.username|first|upper }}</div>
+                                <div class="w-11 h-11 rounded-full bg-primary-container text-white flex items-center justify-center text-sm font-extrabold tracking-wide">
+                                    {{ user.username|first|upper }}
+                                </div>
                                 <div>
                                     <p class="text-[11px] uppercase tracking-[0.14rem] text-on-secondary-container font-semibold">Signed In As</p>
                                     <p class="text-sm font-bold text-on-surface">{{ user.username }}</p>
@@ -47,8 +48,20 @@
                             </div>
                         </div>
                     </a>
-                </div>
-                {% endif %}
+                    {% else %}
+                    <a href="/account/login" class="block no-underline">
+                        <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-3 pr-4 shadow-sm min-w-[220px] hover:opacity-95">
+                            <div class="flex items-center gap-3">
+                                <div class="w-11 h-11 rounded-full bg-primary-container text-white flex items-center justify-center text-sm font-extrabold tracking-wide">
+                                    ?
+                                </div>
+                                <div>
+                                    <p class="text-[11px] uppercase tracking-[0.14rem] text-on-secondary-container font-semibold">Sign In</p>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endif %}
                 <a href="/ballot/" class="block no-underline">
                     <div class="bg-primary-container text-white px-6 py-3 rounded-lg font-semibold hover:opacity-95 transition-opacity">
                         Submit Ballot
