@@ -33,6 +33,11 @@ if not getattr(settings, "LIGHT_MEMORY_MODE", False):
             "task": "round.tasks.retry_pending_submissions",
             "schedule": schedule(5 * 60),
             "args": (),
+        },
+        "assign-teams-to-potential-persons": {
+            "task": "round.tasks.assign_teams_to_potential_persons",
+            "schedule": schedule(60 * 60),  # Run every hour
+            "args": (),
         }
     })
 else:

@@ -105,6 +105,35 @@ class Draw:
         self.sides_confirmed = sides_confirmed
 
 
+class Speaker:
+    def __init__(self, id, url, name, institution=None, institution_conflicts=None, team_conflicts=None, adjudicator_conflicts=None, venue_constraints=None, _links=None, barcode=None, answers=None, last_name=None, email=None, phone=None, anonymous=None, code_name=None, url_key=None, gender=None, pronoun=None, base_score=None, trainee=None, breaking=None, independent=None, adj_core=None, registration_status=None, *args, **kwargs):
+        self.id = id
+        self.url = url
+        self.name = name
+        self.institution = institution
+        self.institution_conflicts = institution_conflicts
+        self.team_conflicts = team_conflicts
+        self.adjudicator_conflicts = adjudicator_conflicts
+        self.venue_constraints = venue_constraints
+        self._links = _links
+        self.barcode = barcode
+        self.answers = answers
+        self.last_name = last_name
+        self.email = email
+        self.phone = phone
+        self.anonymous = anonymous
+        self.code_name = code_name
+        self.url_key = url_key
+        self.gender = gender
+        self.pronoun = pronoun
+        self.base_score = base_score
+        self.trainee = trainee
+        self.breaking = breaking
+        self.independent = independent
+        self.adj_core = adj_core
+        self.registration_status = registration_status
+
+
 class Team:
     """Representation of a competing team returned by the API."""
     def __init__(self, id, url, institution, break_categories, institution_conflicts, venue_constraints, answers, reference, short_reference, code_name, short_name, long_name, use_institution_prefix, seed, emoji, registration_status, speakers, detail=None):

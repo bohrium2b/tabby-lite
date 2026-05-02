@@ -77,6 +77,25 @@
                     return;
                 }
 
+                // Validate email addresses
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (formData.speaker1Email && !emailRegex.test(formData.speaker1Email)) {
+                    alert('Please enter a valid email address for Speaker One.');
+                    return;
+                }
+                if (formData.speaker2Email && !emailRegex.test(formData.speaker2Email)) {
+                    alert('Please enter a valid email address for Speaker Two.');
+                    return;
+                }
+                if (formData.speaker3Email && !emailRegex.test(formData.speaker3Email)) {
+                    alert('Please enter a valid email address for Speaker Three.');
+                    return;
+                }
+                if (formData.speaker4Email && !emailRegex.test(formData.speaker4Email)) {
+                    alert('Please enter a valid email address for Speaker Four.');
+                    return;
+                }
+
                 setSubmitting(true);
 
                 fetch('/registration/', {
@@ -187,7 +206,7 @@
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="font-manrope font-bold text-on-primary-fixed-variant uppercase">
-                                    Speaker Two</h3>
+                                    Speaker Two (optional)</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
                             </div>
@@ -213,7 +232,7 @@
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="font-manrope font-bold text-on-primary-fixed-variant uppercase ">
-                                    Speaker Three</h3>
+                                    Speaker Three (optional)</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
                             </div>
@@ -237,7 +256,7 @@
                             class="group bg-surface-container-low p-8 rounded-xl transition-all hover:bg-surface-container">
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="font-manrope font-bold text-on-primary-fixed-variant uppercase ">
-                                    Speaker Four</h3>
+                                    Speaker Four (optional)</h3>
                                 <span
                                     class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">person</span>
                             </div>

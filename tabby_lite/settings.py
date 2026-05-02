@@ -284,7 +284,7 @@ def _parse_trusted_origins():
                 logging.warning(f"Invalid CSRF origin URI skipped: {origin}")
         except Exception as e:
             logging.warning(f"Error parsing CSRF origin '{origin}': {e}")
-    
+    logging.info(f"Validated CSRF origins: {validated_origins}")
     return validated_origins
 
 CSRF_TRUSTED_ORIGINS = _parse_trusted_origins()

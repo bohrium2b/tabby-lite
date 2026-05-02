@@ -235,6 +235,27 @@ def registration(request):
             'email': body.get('speaker4Email'),
             'institution': body.get('institution')
         }
+        # handle if there isn't enough to create a full team - at least 3 speakers, instead create PotentialTeamSpeakers
+        if not speaker3['name'] or not speaker3['email']:
+            # Create PotentialTeamPerson instances for each speaker. People who register together should be stuck together, set them as each other's companions.
+            companions = []
+            for speaker in [speaker1, speaker2]:
+                if speaker['name'] and speaker['email']:
+                    companion = PotentialTeamPerson.objects.create(
+                        name=speaker['name'],
+                        email=speaker['email']
+                    )
+                    companions.append(companion)
+
+            # Set companions for each other
+            for i in range(len(companions)):
+                for j in range(i + 1, len(companions)):
+                    companions[i].companion = companions[j]
+                    companions[j].companion = companions[i]
+                    companions[i].save()
+                    companions[j].save()
+
+            return HttpResponse(json.dumps({'status': 'success', 'message': 'Registration submitted — You will be assigned to a team if possible.'}), content_type='application/json')
 
         print(speaker1, speaker2, speaker3, speaker4)
         print(f"Institution: {institution.name}")

@@ -37,3 +37,14 @@ class PendingSubmission(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - simple representation
         return f"PendingSubmission {self.pk} -> {self.endpoint} ({self.status})"
+
+
+class PotentialTeamPerson(models.Model):
+    """
+    A person waiting for a team can now register on their own - so instead of requiring them to find a team themselves, they will get a team assigned to them.
+    """
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    assigned_successfully = models.BooleanField(default=False)
+    companion = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True) # A person can request to be put with another person. Will try to satisfy that.
+    created_at = models.DateTimeField(auto_now_add=True)

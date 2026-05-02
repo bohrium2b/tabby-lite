@@ -420,3 +420,73 @@ def periodic_refresh():
                 logger.debug("Periodic refresh: %s failed", name)
     except Exception as exc:  # pragma: no cover
         logger.debug("Periodic refresh top-level error: %s", exc)
+
+
+@shared_task
+def assign_teams_to_potential_persons():
+    """Assign teams to potential team persons."""
+    # Go through, once an hour, and if there are three people available, assign them to a team
+    # If people have requested companions, try to satisfy that request
+    from round.models import PotentialTeamPerson, PendingSubmission
+    from round.emojis import EMOJI_LIST
+    from round.utils import generate_passphrase, get_all_institutions
+    potential_persons = PotentialTeamPerson.objects.filter(assigned_successfully=False)
+    institutions = get_all_institutions()
+    macleans_institution = next((inst for inst in institutions if "Open" in inst.name), None)
+    teams = []
+    for person in potential_persons:
+        # Check if the person has a companion
+        if person.companion and person.companion.assigned_successfully == False:
+            # Create a team with the person and their companion
+            teams.append([person, person.companion])
+        else:
+            # Add the person to a team if there are less than 3 people in the team
+            if not teams or len(teams[-1]) >= 3:
+                teams.append([person])
+            else:
+                teams[-1].append(person)
+
+    # Mark all assigned people as successfully assigned
+    for team in teams:
+        for person in team:
+            person.assigned_successfully = True
+            person.save()
+    
+    # Now create teams
+    for team in teams:
+        # Create a new team with the selected people.
+        # Institution is open.
+        team_name = generate_passphrase("W W")
+        team_payload = {
+            "short_name": team_name,
+            "long_name": team_name,
+            "reference": team_name,
+            "emoji": random.choice(EMOJI_LIST)[0],
+            "institution": macleans_institution.pk if macleans_institution else "",
+            "use_institution_prefix": False,
+        }
+        followup = {
+            "create_speakers": [
+                {
+                    "name": person.name,
+                    "email": person.email,
+                    "institution": getattr(person, "institution", "") or "",
+                }
+                for person in team
+            ]
+        }
+        submission = PendingSubmission.objects.create(
+            payload=team_payload,
+            endpoint=f"{settings.TABBY_ROOT}/teams",
+            status=PendingSubmission.STATUS_PENDING,
+        )
+        submission.payload = {**submission.payload, "_followup": followup}
+        submission.save()
+        try:
+            if getattr(settings, "LIGHT_MEMORY_MODE", False):
+                sync_submission_to_api_now(submission.id)
+            else:
+                sync_submission_to_api.delay(submission.id)
+        except Exception as exc:
+            logger.exception("Failed to enqueue or run sync_submission_to_api for team submission %s", submission.id)
+        
