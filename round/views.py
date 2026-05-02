@@ -15,7 +15,7 @@ from round.emojis import EMOJI_LIST
 from round.models import BallotPairing
 import logging
 from round.utils import Ballot, Result, ResultTeam, Sheet, Speech, Team, get_adjudicator, get_all_institutions, get_all_rounds, get_institution, get_round_by_id, get_round_draw, get_team_by_id, get_tournament, get_tournament_conf, get_venue, get_all_teams, generate_passphrase
-from round.models import PendingSubmission
+from round.models import PendingSubmission, PotentialTeamPerson
 from round.tasks import sync_submission_to_api
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
