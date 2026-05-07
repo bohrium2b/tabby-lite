@@ -89,7 +89,7 @@ class Round:
 
 class Draw:
     """Representation of a single pairing in a round draw."""
-    def __init__(self, id, url, venue, teams, barcode, _links, sides_confirmed, bracket=None, room_rank=None, flags=None, importance=None, result_status=None, adjudicators=None):
+    def __init__(self, id, url, venue, teams, barcode, _links, sides_confirmed, bracket=None, room_rank=None, flags=None, importance=None, result_status=None, adjudicators=None, *args, **kwargs):
         self.id = id
         self.url = url
         self.venue = venue
