@@ -19,6 +19,10 @@ RUN apt-get update -y \
        python3 python3-venv python3-pip build-essential libpq-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
+
+# Enable Redis
+RUN rm -f /etc/service/redis/down
+
 # Create Venv
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

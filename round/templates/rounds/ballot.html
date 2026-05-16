@@ -578,7 +578,7 @@
         return serializer.serializeToString(doc);
       };
 
-      const openPrintWindowWithSvg = (svgString) => {
+      const openPrintWindowWithSvg = (svgString, roundText) => {
         const w = window.open("", "_blank", "width=900,height=700");
         if (!w) return Promise.reject(new Error("Popup blocked"));
         w.document.open();
@@ -914,7 +914,7 @@
                       aff_speakers: data.aff_speakers,
                       neg_speakers: data.neg_speakers,
                     });
-                    return openPrintWindowWithSvg(svgStr)
+                    return openPrintWindowWithSvg(svgStr, data.round)
                       .catch(() => { })
                       .then(() => svgStr);
                   })
@@ -978,7 +978,7 @@
                 aff_speakers: data.aff_speakers,
                 neg_speakers: data.neg_speakers,
               });
-              return openPrintWindowWithSvg(svgStr);
+              return openPrintWindowWithSvg(svgStr, data.round);
             })
             .catch((err) => {
               const errorAlert = document.createElement("div");

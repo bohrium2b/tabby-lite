@@ -16,7 +16,7 @@ services:
       TABBY_AUTHENTICATION_TOKEN: ''
       # Database connection used by dj-database-url
       DATABASE_URL: '<INSERT_DATABASE_URL_HERE>'
-      REDIS_URL: '<INSERT_REDIS_URL_HERE>'
+      REDIS_URL: 'redis://127.0.0.1:6379'
       DJANGO_USE_REDIS: 'true'
     ports:
       - "8000:80"
